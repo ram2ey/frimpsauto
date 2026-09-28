@@ -6,9 +6,23 @@ import { createJob } from "@/app/job-actions";
 type CustomerOption = { id: string; name: string; phone: string; vehicles: { id: string; year: number; model: { name: string } | null; customModel: string | null; plate: string | null }[] };
 type Choice = { id: string; name: string };
 
-export function JobIntake({ customers, models, technicians, templates }: { customers: CustomerOption[]; models: Choice[]; technicians: Choice[]; templates: Choice[] }) {
-  const [customerId, setCustomerId] = useState("");
-  const [vehicleId, setVehicleId] = useState("");
+export function JobIntake({
+  customers,
+  models,
+  technicians,
+  templates,
+  initialCustomerId = "",
+  initialVehicleId = "",
+}: {
+  customers: CustomerOption[];
+  models: Choice[];
+  technicians: Choice[];
+  templates: Choice[];
+  initialCustomerId?: string;
+  initialVehicleId?: string;
+}) {
+  const [customerId, setCustomerId] = useState(initialCustomerId);
+  const [vehicleId, setVehicleId] = useState(initialVehicleId);
   const vehicles = customers.find(customer => customer.id === customerId)?.vehicles || [];
   const years = Array.from({ length: new Date().getFullYear() + 2 - 1926 }, (_, i) => new Date().getFullYear() + 1 - i);
   return <form action={createJob} className="stack">
