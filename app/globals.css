@@ -1,7 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   color-scheme: light;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --blue: #0860a0;
   --blue-dark: #074d81;
   --ink: #12324b;
@@ -15,10 +16,10 @@
 }
 
 * { box-sizing: border-box; }
-html { font-family: 'DM Sans', Arial, sans-serif; color: var(--ink); background: var(--paper); }
+html { font-family: var(--font-sans); color: var(--ink); background: var(--paper); }
 body { margin: 0; background: radial-gradient(ellipse at 75% 0%, #fff 0%, transparent 45%), linear-gradient(125deg, #e2eff8, #f0f7fc 55%, #dcecf8); min-height: 100vh; }
 h1, h2, h3, h4, p { margin-top: 0; }
-h1, h2, h3 { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; letter-spacing: -.035em; }
+h1, h2, h3 { font-family: var(--font-sans); font-weight: 700; letter-spacing: -.025em; }
 h1 { font-size: clamp(1.85rem, 2.5vw, 2.6rem); line-height: 1.15; margin-bottom: .55rem; overflow-wrap: anywhere; }
 h2 { font-size: 1.35rem; line-height: 1.25; }
 h3 { font-size: 1.15rem; }
@@ -161,7 +162,7 @@ button:disabled[aria-busy="true"] {
 .pill.completed, .pill.paid { background: #e4f1e7; color: #306640; }
 .pill.rejected { background: #fce7e7; color: #963637; }
 .stat { padding: 22px 24px; min-width: 0; }
-.stat .value { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(1.8rem, 2.7vw, 2.65rem); font-weight: 400; letter-spacing: -.04em; line-height: 1.15; margin: 10px 0 5px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stat .value { font-family: var(--font-sans); font-size: clamp(1.8rem, 2.7vw, 2.65rem); font-weight: 700; letter-spacing: -.03em; line-height: 1.15; margin: 10px 0 5px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .stat .label { font-size: .74rem; font-weight: 500; color: var(--muted); }
 .stat small { font-size: .69rem; }
 .section-title { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 18px; }
@@ -226,7 +227,7 @@ button:disabled[aria-busy="true"] {
 .dashboard-heading .actions { flex-shrink: 0; }
 .featured-jobs { position: relative; padding: 8px 26px 0; background: radial-gradient(ellipse at 50% 100%, #b8d9ef8c, transparent 67%); }
 .feature-caption { display: flex; justify-content: space-between; gap: 12px; font-size: .68rem; color: var(--muted); margin: 8px 0 18px; }
-.feature-caption span:last-child { font-family: Georgia, 'Times New Roman', serif; font-style: italic; }
+.feature-caption span:last-child { font-family: var(--font-sans); font-style: normal; font-weight: 500; }
 .job-deck { display: flex; align-items: end; justify-content: center; padding-top: 24px; isolation: isolate; }
 .job-feature { position: relative; display: flex; flex-direction: column; justify-content: space-between; flex: 1 1 0; min-width: 0; max-width: 400px; min-height: 224px; padding: 20px 32px 28px; border: 1px solid #cbd5e1; border-radius: 0; background: #ffffff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06); }
 .job-feature + .job-feature { margin-left: -1px; }
@@ -260,7 +261,7 @@ button:disabled[aria-busy="true"] {
 .workload-bar > span { display: block; height: 100%; }
 .workload-chart { width: 168px; height: 168px; margin: 25px auto; padding: 10px; border-radius: 50%; transform: rotate(-90deg); box-shadow: 0 0 0 6px #ffffff73; }
 .workload-chart > div { display: flex; align-items: center; justify-content: center; flex-direction: column; width: 100%; height: 100%; border-radius: 50%; background: #eff7fc; transform: rotate(90deg); }
-.workload-chart span { font-family: Georgia, 'Times New Roman', serif; font-size: 2.6rem; letter-spacing: -.06em; }
+.workload-chart span { font-family: var(--font-sans); font-size: 2.6rem; letter-spacing: -.04em; font-weight: 700; }
 .workload-chart small { font-size: .67rem; }
 .workload-legend { list-style: none; margin: 0; padding: 0; }
 .workload-legend a { display: flex; align-items: center; gap: 9px; min-height: 39px; border-bottom: 1px solid #cfe1ed; font-size: .73rem; }
@@ -416,7 +417,7 @@ button:disabled[aria-busy="true"] {
 @keyframes modal-pop { from { opacity: 0; transform: scale(.96) translateY(-6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .modal-card { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 0; box-shadow: 0 24px 64px -16px rgba(18, 50, 75, .28); padding: 24px; color: var(--ink); }
 .modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-.modal-header h3 { margin: 0; font-size: 1.22rem; font-family: Georgia, 'Times New Roman', serif; font-weight: 400; color: var(--ink); }
+.modal-header h3 { margin: 0; font-size: 1.22rem; font-family: var(--font-sans); font-weight: 700; color: var(--ink); }
 .modal-subtitle { font-size: .8rem; color: var(--muted); margin: 4px 0 0; line-height: 1.45; }
 .modal-close-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 0; border: 1px solid #cce0ee; background: #f4f9fd; color: var(--muted); cursor: pointer; flex-shrink: 0; transition: all .18s ease; }
 .modal-close-btn:hover { background: #e4f0f8; color: var(--ink); }
