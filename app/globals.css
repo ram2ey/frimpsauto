@@ -215,7 +215,7 @@ small { font-size: .75rem; line-height: 1.5; }
 .feature-empty { text-align: center; padding: 20px 10px 35px; }
 .feature-empty h2 { margin: 14px 0 8px; font-size: 1.6rem; }
 .feature-empty p { font-size: .83rem; color: var(--muted); }
-.metrics-strip { position: relative; z-index: 4; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: linear-gradient(125deg, #e6f2fbdc, #f4faffeb 55%, #dcecf8eb); border: 1px solid #fff; border-radius: 20px; box-shadow: 0 -8px 25px -15px #427b9c40, var(--shadow); margin-top: -10px; margin-bottom: 20px; }
+.metrics-strip { position: relative; z-index: 4; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: linear-gradient(125deg, #e6f2fbdc, #f4faffeb 55%, #dcecf8eb); border: 1px solid #fff; border-radius: 20px; box-shadow: 0 -8px 25px -15px #427b9c40, var(--shadow); margin-top: 0; margin-bottom: 24px; }
 .metrics-strip .stat { position: relative; }
 .metrics-strip .stat + .stat::before { content: ''; position: absolute; top: 25%; bottom: 25%; left: 0; width: 1px; background: #bdd7e9; }
 .metrics-strip .money-value { font-size: clamp(1.45rem, 2.1vw, 2.1rem); line-height: 1.45; }
@@ -223,6 +223,11 @@ small { font-size: .75rem; line-height: 1.5; }
 .recent-jobs .table { min-width: 570px; }
 .workload { background: linear-gradient(145deg, #ffffff9c, #dfedf8a6); }
 .workload .section-title { margin-bottom: 2px; }
+.workload-summary { margin: 16px 0 18px; }
+.workload-total { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; font-size: .78rem; color: var(--muted); }
+.workload-total strong { font-size: 1.5rem; font-weight: 600; color: var(--ink); line-height: 1; }
+.workload-bar { display: flex; height: 10px; border-radius: 8px; overflow: hidden; background: #d2e4f0; }
+.workload-bar > span { display: block; height: 100%; }
 .workload-chart { width: 168px; height: 168px; margin: 25px auto; padding: 10px; border-radius: 50%; transform: rotate(-90deg); box-shadow: 0 0 0 6px #ffffff73; }
 .workload-chart > div { display: flex; align-items: center; justify-content: center; flex-direction: column; width: 100%; height: 100%; border-radius: 50%; background: #eff7fc; transform: rotate(90deg); }
 .workload-chart span { font-family: Georgia, 'Times New Roman', serif; font-size: 2.6rem; letter-spacing: -.06em; }
