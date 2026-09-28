@@ -74,6 +74,10 @@ async function main() {
     okAction(await submit("/checklists", formFor(checklistHtml, "Create template"), { name: `Smoke checklist ${suffix}`, items: "Lights\nBrakes" }, adminCookie), "Create template");
     const createdTemplate = await sql.query('SELECT id FROM "ChecklistTemplate" WHERE name=$1', [`Smoke checklist ${suffix}`]);
     assert.equal(createdTemplate.rows.length, 1);
+    const settingsHtml = await page("/settings", adminCookie);
+    okAction(await submit("/settings", formFor(settingsHtml, "Save details"), { name: `Frimps Smoke ${suffix}`, address: "Accra, Ghana", phone: "+233 20 000 0000", email: "accounts@example.com" }, adminCookie), "Save business details");
+    const profile = await sql.query('SELECT name,address,phone,email FROM "BusinessProfile" WHERE id=$1', ["primary"]);
+    assert.equal(profile.rows[0].name, `Frimps Smoke ${suffix}`);
   }
   const supervisor = await addUser("SUPERVISOR");
   const technician = await addUser("TECHNICIAN");
@@ -95,6 +99,7 @@ async function main() {
   const jobId = jobPath.split("/").at(-1);
   assert.match(await page(jobPath, technicianCookie), /Rough idle and brake inspection/);
   assert.equal((await get("/finance", technicianCookie)).status, 307);
+  assert.equal((await get("/settings", financeCookie)).status, 307);
   assert.equal((await get(jobPath, otherTechnicianCookie)).status, 307);
 
   // Dashboard cards and aggregates must respect the same job access as detail pages.
@@ -134,6 +139,10 @@ async function main() {
   }
 
   const jobHtml = await page(jobPath, supervisorCookie);
+  assert.doesNotMatch(intake, /name="mileage"/, "Mileage belongs to the job inspection, not intake");
+  okAction(await submit(jobPath, formFor(jobHtml, "Mileage at this visit"), { mileage: "123450" }, supervisorCookie), "Record job mileage");
+  const jobMileage = await sql.query('SELECT mileage FROM "Job" WHERE id=$1', [jobId]);
+  assert.equal(jobMileage.rows[0].mileage, 123450);
   const checklist = await submit(jobPath, formFor(jobHtml, "Not checked"), { result: "PASS", note: "Inspected" }, supervisorCookie);
   okAction(checklist, "Save checklist");
   const checked = await sql.query('SELECT result FROM "JobChecklistItem" WHERE "jobId"=$1 ORDER BY "sortOrder" LIMIT 1', [jobId]);
@@ -176,6 +185,16 @@ async function main() {
   const readyInvoice = await page(invoicePath, financeCookie);
   okAction(await submit(invoicePath, formFor(readyInvoice, "Issue invoice"), {}, financeCookie), "Issue invoice");
   const issuedInvoice = await page(invoicePath, financeCookie);
+  assert.match(issuedInvoice, new RegExp(`/api/invoices/${invoiceId}/download`));
+  const download = await get(`/api/invoices/${invoiceId}/download`, financeCookie);
+  assert.equal(download.status, 200);
+  assert.match(download.headers.get("content-type") || "", /application\/pdf/);
+  assert.match(download.headers.get("content-disposition") || "", /attachment/);
+  const pdf = Buffer.from(await download.arrayBuffer());
+  assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
+  assert.ok(pdf.includes(Buffer.from("/Subtype /Image")), "Invoice PDF must contain the logo");
+  assert.ok(pdf.includes(Buffer.from(`Smoke Customer ${suffix}`)), "Invoice PDF must contain the customer");
+  if (process.env.SMOKE_ADMIN_EMAIL && process.env.SMOKE_ADMIN_PASSWORD) assert.ok(pdf.includes(Buffer.from(`Frimps Smoke ${suffix}`)), "Invoice PDF must contain saved business details");
   okAction(await submit(invoicePath, formFor(issuedInvoice, "Record payment"), { amount: "50.00", method: "Cash" }, financeCookie), "Record payment");
   const balance = await sql.query('SELECT i.status, COALESCE((SELECT SUM(quantity*"unitCents") FROM "InvoiceItem" WHERE "invoiceId"=i.id),0) AS total, COALESCE((SELECT SUM("amountCents") FROM "Payment" WHERE "invoiceId"=i.id),0) AS paid FROM "Invoice" i WHERE i.id=$1', [invoiceId]);
   assert.equal(balance.rows[0].status, "PARTIAL");

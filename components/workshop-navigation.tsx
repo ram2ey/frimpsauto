@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ClipboardList, UsersRound, Package, ReceiptText, UserCog, ListChecks } from "lucide-react";
+import { LayoutDashboard, ClipboardList, UsersRound, Package, ReceiptText, UserCog, ListChecks, Settings2 } from "lucide-react";
 
 const sections = {
   dashboard: { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -12,6 +12,7 @@ const sections = {
   finance: { href: "/finance", label: "Finance", icon: ReceiptText },
   team: { href: "/team", label: "Staff & access", icon: UserCog },
   checklists: { href: "/checklists", label: "Checklists", icon: ListChecks },
+  settings: { href: "/settings", label: "Business details", icon: Settings2 },
 };
 
 export type WorkshopSection = keyof typeof sections;

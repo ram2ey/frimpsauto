@@ -12,5 +12,5 @@ export default async function NewJob() {
     db.user.findMany({ where: { role: Role.TECHNICIAN, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     db.checklistTemplate.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
-  return <main className="content"><div className="page-head"><div><div className="eyebrow">Workshop / Job orders</div><h1>New job order</h1><p className="subtitle">Record the customer, vehicle and reason for visiting.</p></div><Link className="btn btn-secondary" href="/jobs">Back to jobs</Link></div><JobIntake customers={customers} models={models} technicians={technicians} templates={templates}/></main>;
+  return <main className="content"><div className="page-head"><div><h1>New job order</h1></div><Link className="btn btn-secondary" href="/jobs">Back to jobs</Link></div><JobIntake customers={customers} models={models} technicians={technicians} templates={templates}/></main>;
 }

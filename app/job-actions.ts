@@ -22,9 +22,6 @@ export async function createJob(form: FormData) {
   const year = existingVehicleId ? null : positiveInt(form.get("year"), "Model year");
   if (year && (year < 1926 || year > new Date().getFullYear() + 1)) throw new Error("Choose a valid Mercedes-Benz model year.");
   const modelName = existingVehicleId ? null : text(form.get("modelName"), "Vehicle model", 120);
-  const mileageRaw = String(form.get("mileage") || "").trim();
-  const mileage = mileageRaw ? Number(mileageRaw) : null;
-  if (mileage !== null && (!Number.isSafeInteger(mileage) || mileage < 0)) throw new Error("Mileage must be a whole number.");
   const customerName = !existingVehicleId && !existingCustomerId ? text(form.get("customerName"), "Customer name", 120) : null;
   const customerPhone = !existingVehicleId && !existingCustomerId ? text(form.get("customerPhone"), "Phone", 50) : null;
   const templateId = String(form.get("templateId") || "");
@@ -54,7 +51,6 @@ export async function createJob(form: FormData) {
         vin: String(form.get("vin") || "").trim().toUpperCase() || null,
         plate: String(form.get("plate") || "").trim().toUpperCase() || null,
         color: String(form.get("color") || "").trim() || null,
-        mileage,
       } });
       vehicleId = vehicle.id;
     }
@@ -98,6 +94,19 @@ export async function updateChecklist(itemId: string, form: FormData) {
   if (result && !["PASS", "ATTENTION", "NOT_APPLICABLE"].includes(result)) throw new Error("Invalid checklist result.");
   await db.jobChecklistItem.update({ where: { id: itemId }, data: { result: result || null, note: String(form.get("note") || "").trim().slice(0, 500) || null } });
   revalidatePath(`/jobs/${item.jobId}`);
+}
+
+export async function updateJobMileage(jobId: string, form: FormData) {
+  await assertRole(editors);
+  const job = await db.job.findUnique({ where: { id: jobId } });
+  if (!job || job.status === JobStatus.COMPLETED) throw new Error("This job is closed.");
+  const raw = String(form.get("mileage") || "").trim();
+  const mileage = raw ? Number(raw) : null;
+  if (mileage !== null && (!Number.isSafeInteger(mileage) || mileage < 0 || mileage > 2147483647)) {
+    throw new Error("Mileage must be a valid whole number.");
+  }
+  await db.job.update({ where: { id: jobId }, data: { mileage } });
+  revalidatePath(`/jobs/${jobId}`);
 }
 
 export async function requestPart(jobId: string, form: FormData) {

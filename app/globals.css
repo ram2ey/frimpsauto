@@ -47,24 +47,28 @@ small { font-size: .75rem; line-height: 1.5; }
 
 /* A continuous pale-blue workspace, with a compact tile rail. */
 .shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: calc(100vh - 32px); margin: 16px; border: 1px solid rgba(255, 255, 255, .95); border-radius: 26px; box-shadow: 0 20px 70px -35px #36739c55; background: rgba(235, 245, 252, .55); }
-.sidebar { padding: 26px 16px 20px; display: flex; flex-direction: column; gap: 24px; background: linear-gradient(165deg, #edf6fbd9, #dbeaf5a6); border-right: 1px solid #ffffffc2; border-radius: 25px 0 0 25px; }
-.brand-link { display: block; width: 108px; align-self: center; padding: 5px; background: white; border-radius: 18px; box-shadow: 0 3px 14px #2259840a; }
+.sidebar { position: sticky; top: 16px; align-self: start; height: calc(100dvh - 32px); padding: 16px; display: flex; flex-direction: column; gap: 14px; background: linear-gradient(165deg, #edf6fbd9, #dbeaf5a6); border-right: 1px solid #ffffffc2; border-radius: 25px 0 0 25px; }
+.sidebar-menu { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #abcde3 transparent; }
+.sidebar-admin { margin-top: 8px; padding-top: 8px; border-top: 1px solid #c6dce9; }
+.brand-link { display: block; width: 80px; align-self: center; padding: 4px; background: white; border-radius: 14px; box-shadow: 0 3px 14px #2259840a; }
 .brand-logo { display: block; width: 100%; height: auto; background: #fff; border-radius: 13px; }
+.settings-logo { width: 65px; }
 .sidebar-search { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #c6dce9; padding: 0 0 7px 5px; color: var(--muted); }
 .sidebar-search input { padding: 0 2px; border: 0; border-radius: 4px; background: transparent; font-size: .78rem; }
 .sidebar-search button { display: grid; place-items: center; flex: 0 0 30px; min-height: 44px; border: 0; border-radius: 20px; color: var(--blue); background: transparent; }
 .sidebar-search button:hover { background: #d9eaf6; }
 .nav-caption { font-size: .63rem; text-transform: uppercase; letter-spacing: .13em; font-weight: 600; color: var(--muted); padding: 0 6px; margin-bottom: 12px; }
-.nav-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.nav-tiles { display: flex; flex-direction: column; gap: 4px; }
 .nav-link { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; min-height: 82px; padding: 12px 6px; border: 1px solid #ffffffb3; border-radius: 15px; font-size: .71rem; line-height: 1.25; text-align: center; background: #f8fcff80; }
 .nav-link:hover { background: #ffffffdc; border-color: #b1d1e7; }
 .nav-link.is-active { background: var(--blue); border-color: #397faf; color: white; box-shadow: inset 0 1px 0 #ffffff36, 0 5px 12px #0860a01c; }
+.nav-tiles .nav-link { flex-direction: row; justify-content: flex-start; gap: 10px; min-height: 42px; padding: 9px 11px; text-align: left; font-size: .77rem; }
 .nav-utility { display: flex; flex-direction: column; gap: 5px; }
 .nav-utility .nav-link { flex-direction: row; justify-content: start; min-height: 44px; background: transparent; border-color: transparent; padding: 10px; text-align: left; font-size: .76rem; }
-.nav-utility .nav-link svg { box-sizing: content-box; padding: 7px; border-radius: 50%; border: 1px solid #c8dfed; background: #f6fbff; }
+.nav-utility .nav-link svg { box-sizing: content-box; }
 .nav-utility .nav-link:hover { background: #ffffff80; }
 .nav-utility .nav-link.is-active { color: var(--blue); background: #ffffffb0; border-color: #c1d9e9; box-shadow: none; }
-.side-bottom { margin-top: auto; padding: 20px 5px 0; border-top: 1px solid #c6dce9; }
+.side-bottom { flex-shrink: 0; padding: 12px 5px 0; border-top: 1px solid #c6dce9; }
 .side-bottom .btn { width: 100%; }
 .account-copy { min-width: 0; }
 .account-copy strong { display: block; font-size: .8rem; font-weight: 500; overflow-wrap: anywhere; }
@@ -159,6 +163,9 @@ small { font-size: .75rem; line-height: 1.5; }
 .check-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1.2fr) auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .check-row strong { font-size: .85rem; font-weight: 500; }
 .check-row:last-child { border-bottom: 0; }
+.mileage-row { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+.mileage-form { display: flex; align-items: center; gap: 8px; max-width: 290px; }
+.mileage-form input { max-width: 150px; }
 .hint { font-size: .75rem; color: var(--muted); margin-top: 7px; line-height: 1.6; }
 .number { font-variant-numeric: tabular-nums; }
 .right { text-align: right; }

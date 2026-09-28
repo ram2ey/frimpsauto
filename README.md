@@ -13,7 +13,7 @@ Garage management for a Mercedes-Benz specialist workshop. The app covers custom
 
 | Role | Access |
 | --- | --- |
-| Admin | All screens and actions, staff invitations, checklist templates |
+| Admin | All screens and actions, staff invitations, checklist templates, business invoice details |
 | Supervisor | Customer intake, vehicle/job creation, technician assignment, checklists, diagnostics, parts requests, job closure |
 | Finance | View jobs and customers, manage inventory, approve/reject/issue parts, invoices and payments |
 | Technician | Read-only view of assigned jobs and their diagnostic files |
@@ -26,6 +26,8 @@ Permissions are checked in server actions and file routes as well as page naviga
 2. Run `docker compose up --build -d`. The app waits for PostgreSQL, applies the versioned migration, creates the initial admin and checklist, then starts on internal port 3000. Compose creates persistent `postgres_data` and `diagnostic_files` volumes on the server.
 3. Sign in using `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD`. Remove those two values from the app environment after the first successful start. The seed does not overwrite an existing admin password.
 4. The initial catalog includes common and classic Mercedes-Benz names plus a snapshot of model names from the [NHTSA vPIC API](https://vpic.nhtsa.dot.gov/api/). Run `docker compose exec app npm run catalog:import` to refresh the NHTSA names. The model field always accepts manual entry. The year selector spans 1926 through next model year.
+
+Admins can enter the business name, address, phone, and email under **Business details**. These appear beside the logo in downloaded invoices. Finance staff and admins can download a PDF from each invoice; it includes the customer, vehicle, line items, payments, and balance. Mileage is recorded on each job's inspection checklist so repeat visits retain separate readings. Apply the new migrations before using this version.
 
 For local development with an existing PostgreSQL server, set `DATABASE_URL`, run `npm install`, `npm run db:migrate`, `npm run db:seed`, and `npm run dev`.
 
