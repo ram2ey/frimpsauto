@@ -8,3 +8,8 @@
 .brand-logo{display:block;width:100%;height:auto;background:#fff}
 .auth-brand-logo{width:min(240px,100%)}
 @media(max-width:720px){.auth-brand-logo{width:150px}}
+.login-single{display:flex;align-items:center;justify-content:center;padding:2rem 1rem}
+.login-single .login-form{width:100%;padding:0;align-items:center}
+.login-single .login-card{margin:auto;text-align:center}
+.login-single .auth-brand-logo{width:min(220px,65vw);margin:0 auto 1.5rem}
+.login-single label,.login-single input{text-align:center}
