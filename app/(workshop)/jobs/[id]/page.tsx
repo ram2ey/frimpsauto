@@ -5,6 +5,7 @@ import { Role } from "@/generated/prisma/client";
 import { JobInspection } from "@/components/job-inspection";
 import { JobTabs } from "@/components/job-tabs";
 import { JobCompleteModal } from "@/components/job-complete-modal";
+import { PrintButton } from "@/components/print-button";
 import { canViewJob } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
@@ -51,6 +52,22 @@ export default async function JobDetail({
 
   return (
     <main className="content">
+      {/* Printable Workshop Sheet Header */}
+      <div className="print-only print-doc-header">
+        <div>
+          <h2>FRIMPS AUTO</h2>
+          <p style={{ margin: "2px 0 0", fontSize: "0.78rem", color: "#4b5563" }}>
+            Mercedes-Benz Specialist Workshop · Work Order & Technical Inspection
+          </p>
+        </div>
+        <div style={{ textAlign: "right", fontSize: "0.78rem", color: "#4b5563" }}>
+          <p style={{ margin: 0, fontWeight: 600, color: "#111827" }}>
+            Job Order #{String(job.number).padStart(5, "0")}
+          </p>
+          <p style={{ margin: "2px 0 0" }}>Date: {date(job.createdAt)}</p>
+        </div>
+      </div>
+
       {/* Persistent Page Head */}
       <div className="page-head">
         <div>
@@ -60,6 +77,7 @@ export default async function JobDetail({
         </div>
         <div className="row wrap">
           <span className={`pill ${job.status.toLowerCase()}`}>{job.status.replaceAll("_", " ").toLowerCase()}</span>
+          <PrintButton label="Print" />
           <Link className="btn btn-secondary" href="/jobs">All jobs</Link>
         </div>
       </div>
@@ -321,6 +339,34 @@ export default async function JobDetail({
           partRequests={job.partRequests}
         />
       )}
+
+      {/* Printable Workshop Sign-off Section */}
+      <div className="print-only card mt" style={{ marginTop: 24, fontSize: "8pt" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16 }}>
+          <div style={{ borderTop: "1px solid #9ca3af", paddingTop: 8 }}>
+            <strong>Assigned Technician:</strong>
+            <p style={{ margin: "4px 0 0" }}>{job.technician?.name || "Unassigned"}</p>
+            <p style={{ margin: "20px 0 0", color: "#6b7280" }}>Signature: _______________________</p>
+          </div>
+          <div style={{ borderTop: "1px solid #9ca3af", paddingTop: 8 }}>
+            <strong>Workshop Supervisor:</strong>
+            <p style={{ margin: "4px 0 0" }}>Quality Inspection Sign-off</p>
+            <p style={{ margin: "20px 0 0", color: "#6b7280" }}>Signature: _______________________</p>
+          </div>
+          <div style={{ borderTop: "1px solid #9ca3af", paddingTop: 8 }}>
+            <strong>Customer Handover:</strong>
+            <p style={{ margin: "4px 0 0" }}>{job.customer.name}</p>
+            <p style={{ margin: "20px 0 0", color: "#6b7280" }}>Signature: _______________________</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Printable Sheet Footer */}
+      <footer className="print-only print-doc-footer">
+        <p style={{ margin: 0, fontWeight: 500 }}>
+          Frimps Auto · Mercedes-Benz Specialist Workshop · Official Job Order Record
+        </p>
+      </footer>
     </main>
   );
 }

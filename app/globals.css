@@ -416,6 +416,233 @@ small { font-size: .75rem; line-height: 1.5; }
   .job-completion-bar .btn { width: 100%; }
 }
 
+/* Screen vs Print Utility Rules */
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm 12mm 15mm;
+  }
+
+  *, *::before, *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-size: 9pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+  }
+
+  .shell {
+    display: block !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    min-height: auto !important;
+  }
+
+  .content {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Hide screen chrome and interactive controls */
+  .sidebar,
+  .topbar,
+  .skip-link,
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-teal,
+  .btn-danger,
+  .icon-button,
+  .no-print,
+  .job-tabs,
+  .notice,
+  .modal-dialog,
+  dialog,
+  .job-completion-bar,
+  .inspection-save,
+  .actions,
+  .sidebar-menu,
+  form:not(.print-include) {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* Cards and Surfaces */
+  .card {
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+    padding: 10px 14px !important;
+    margin-bottom: 12px !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .grid {
+    display: block !important;
+  }
+  .grid > * + * {
+    margin-top: 10px !important;
+  }
+
+  /* Statistics display */
+  .metrics-strip,
+  .grid.three,
+  .grid.two {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 10px !important;
+  }
+  .stat {
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    padding: 8px 12px !important;
+    flex: 1 1 0 !important;
+  }
+  .stat .value {
+    font-size: 1.25rem !important;
+    margin: 3px 0 0 !important;
+    color: #111827 !important;
+  }
+  .stat .label {
+    font-size: 7.5pt !important;
+  }
+
+  /* Tables */
+  .table-wrap {
+    overflow: visible !important;
+  }
+  .table {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-collapse: collapse !important;
+    font-size: 8.5pt !important;
+  }
+  .table th {
+    background: #f3f4f6 !important;
+    color: #1f2937 !important;
+    border-bottom: 1.5px solid #9ca3af !important;
+    padding: 6px 8px !important;
+    font-weight: 600 !important;
+  }
+  .table td {
+    border-bottom: 1px solid #e5e7eb !important;
+    padding: 6px 8px !important;
+    color: #111827 !important;
+  }
+  .table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Badges & Pills */
+  .pill {
+    border: 1px solid #9ca3af !important;
+    background: transparent !important;
+    color: #111827 !important;
+    font-weight: 600 !important;
+    font-size: 7.5pt !important;
+    padding: 2px 6px !important;
+    border-radius: 3px !important;
+  }
+
+  /* Headings & Print Header */
+  .page-head {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    margin-bottom: 12px !important;
+    border-bottom: 1.5px solid #111827 !important;
+    padding-bottom: 8px !important;
+  }
+  .page-head h1 {
+    font-size: 1.5rem !important;
+    margin-bottom: 2px !important;
+    color: #111827 !important;
+  }
+
+  .print-doc-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    border-bottom: 2px solid #111827 !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 12px !important;
+  }
+  .print-doc-header h2 {
+    margin: 0 !important;
+    font-size: 1.3rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  .print-doc-footer {
+    display: block !important;
+    margin-top: 20px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid #d1d5db !important;
+    font-size: 7.5pt !important;
+    color: #6b7280 !important;
+    text-align: center !important;
+  }
+
+  /* Checklist and Inspection in print */
+  .check-row,
+  .inspection-edit-row {
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 12px !important;
+    padding: 6px 0 !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .check-row strong {
+    min-width: 180px !important;
+    font-size: 8.5pt !important;
+  }
+  .segmented-control {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+  .segmented-item {
+    border: 1px solid #d1d5db !important;
+    padding: 2px 6px !important;
+    font-size: 7.5pt !important;
+    min-height: auto !important;
+  }
+  .inspection-progress-bar {
+    display: none !important;
+  }
+
+  h1, h2, h3, h4 {
+    page-break-after: avoid;
+    break-after: avoid;
+    color: #111827 !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
