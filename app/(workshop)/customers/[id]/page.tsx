@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -8,14 +8,38 @@ import { date } from "@/lib/format";
 import { CustomerProfileCard } from "@/components/customer-profile-card";
 import { VehicleCard } from "@/components/vehicle-card";
 
-export default async function CustomerDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function CustomerDetail({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ q?: string }>;
+}) {
   const user = await requireRole([Role.SUPERVISOR, Role.FINANCE]);
   const { id } = await params;
+  const { q } = (await searchParams) || {};
+  const trimmed = (q || "").trim();
+
   const customer = await db.customer.findUnique({
     where: { id },
     include: {
       vehicles: { include: { model: true }, orderBy: { createdAt: "desc" } },
-      jobs: { include: { vehicle: { include: { model: true } } }, orderBy: { createdAt: "desc" }, take: 20 },
+      jobs: {
+        where: trimmed
+          ? {
+              OR: [
+                { complaint: { contains: trimmed, mode: "insensitive" } },
+                { vehicle: { plate: { contains: trimmed, mode: "insensitive" } } },
+                { vehicle: { vin: { contains: trimmed, mode: "insensitive" } } },
+                { vehicle: { customModel: { contains: trimmed, mode: "insensitive" } } },
+                { vehicle: { model: { name: { contains: trimmed, mode: "insensitive" } } } },
+              ],
+            }
+          : undefined,
+        include: { vehicle: { include: { model: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      },
     },
   });
   if (!customer) notFound();
@@ -58,6 +82,29 @@ export default async function CustomerDetail({ params }: { params: Promise<{ id:
             <h2>Recent jobs</h2>
             <span className="pill">{customer.jobs.length} visits</span>
           </div>
+
+          <form action={`/customers/${id}`} method="GET" className="row wrap mb" style={{ gap: 8 }}>
+            <div style={{ position: "relative", flex: "1 1 180px", display: "flex", alignItems: "center" }}>
+              <input
+                name="q"
+                defaultValue={trimmed}
+                placeholder="Filter jobs by plate, model, complaint..."
+                style={{ paddingLeft: "32px", minHeight: "36px", fontSize: "0.78rem" }}
+              />
+              <Search
+                size={14}
+                aria-hidden="true"
+                style={{ position: "absolute", left: "10px", color: "var(--muted)", pointerEvents: "none" }}
+              />
+            </div>
+            <button type="submit" className="btn btn-secondary btn-small">Filter</button>
+            {trimmed && (
+              <Link href={`/customers/${id}`} className="btn btn-secondary btn-small" title="Clear filter">
+                <X size={13} /> Clear
+              </Link>
+            )}
+          </form>
+
           <div className="table-wrap">
             <table className="table">
               <thead>
@@ -79,6 +126,7 @@ export default async function CustomerDetail({ params }: { params: Promise<{ id:
                     <td>
                       <small>
                         {job.vehicle.year} {job.vehicle.model?.name || job.vehicle.customModel}
+                        {job.vehicle.plate ? ` (${job.vehicle.plate})` : ""}
                       </small>
                     </td>
                     <td className="date-cell">{date(job.createdAt)}</td>
@@ -91,7 +139,11 @@ export default async function CustomerDetail({ params }: { params: Promise<{ id:
                 ))}
               </tbody>
             </table>
-            {!customer.jobs.length && <div className="empty">No service history yet for this customer.</div>}
+            {!customer.jobs.length && (
+              <div className="empty">
+                {trimmed ? `No past jobs found matching "${trimmed}".` : "No service history yet for this customer."}
+              </div>
+            )}
           </div>
         </section>
       </div>

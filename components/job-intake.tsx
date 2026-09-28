@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { UserCheck, Car, Phone, Mail, History, X } from "lucide-react";
+import { UserCheck, Car, Phone, Mail, History, X, Search } from "lucide-react";
 import { createJob } from "@/app/job-actions";
 import { SubmitButton } from "@/components/submit-button";
 
@@ -42,6 +42,7 @@ export function JobIntake({
   const [customerId, setCustomerId] = useState(initialCustomerId);
   const [vehicleId, setVehicleId] = useState(initialVehicleId);
   const [yearValue, setYearValue] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
 
   // Preserve state if user toggles between new and existing customer
   const [newCustomerName, setNewCustomerName] = useState("");
@@ -58,6 +59,24 @@ export function JobIntake({
     currentYear - 7,
     currentYear - 10,
   ];
+
+  const filteredCustomers = customerSearch.trim()
+    ? customers.filter((c) => {
+        const query = customerSearch.toLowerCase();
+        return (
+          c.name.toLowerCase().includes(query) ||
+          c.phone.includes(customerSearch) ||
+          (c.email && c.email.toLowerCase().includes(query)) ||
+          c.vehicles.some(
+            (v) =>
+              (v.plate && v.plate.toLowerCase().includes(query)) ||
+              (v.vin && v.vin.toLowerCase().includes(query)) ||
+              (v.model?.name && v.model.name.toLowerCase().includes(query)) ||
+              (v.customModel && v.customModel.toLowerCase().includes(query))
+          )
+        );
+      })
+    : customers;
 
   const selectedCustomer = customers.find((c) => c.id === customerId);
   const vehicles = selectedCustomer?.vehicles || [];
@@ -78,23 +97,50 @@ export function JobIntake({
         </div>
         <div className="form-grid">
           <div className="field field-wide">
-            <label htmlFor="existingCustomerId">Existing customer</label>
-            <select
-              id="existingCustomerId"
-              name="existingCustomerId"
-              value={customerId}
-              onChange={(e) => {
-                setCustomerId(e.target.value);
-                setVehicleId("");
-              }}
-            >
-              <option value="">New customer</option>
-              {customers.map((customer) => (
-                <option value={customer.id} key={customer.id}>
-                  {customer.name} · {customer.phone}
-                </option>
-              ))}
-            </select>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.45rem" }}>
+              <label htmlFor="existingCustomerId" style={{ margin: 0 }}>Existing customer</label>
+              {customerSearch.trim() && (
+                <span className="muted" style={{ fontSize: "0.74rem" }}>
+                  {filteredCustomers.length} matching {filteredCustomers.length === 1 ? "client" : "clients"}
+                </span>
+              )}
+            </div>
+            <div className="row wrap" style={{ gap: 8 }}>
+              <div style={{ position: "relative", flex: "1 1 200px", display: "flex", alignItems: "center" }}>
+                <input
+                  type="search"
+                  placeholder="Filter client by name, phone, plate, VIN..."
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  style={{ paddingLeft: "32px", minHeight: "40px", fontSize: "0.82rem" }}
+                  aria-label="Filter customer dropdown"
+                />
+                <Search
+                  size={14}
+                  aria-hidden="true"
+                  style={{ position: "absolute", left: "10px", color: "var(--muted)", pointerEvents: "none" }}
+                />
+              </div>
+              <div style={{ flex: "2 1 260px" }}>
+                <select
+                  id="existingCustomerId"
+                  name="existingCustomerId"
+                  value={customerId}
+                  onChange={(e) => {
+                    setCustomerId(e.target.value);
+                    setVehicleId("");
+                  }}
+                  style={{ minHeight: "40px" }}
+                >
+                  <option value="">New customer (create new record)</option>
+                  {filteredCustomers.map((customer) => (
+                    <option value={customer.id} key={customer.id}>
+                      {customer.name} · {customer.phone}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
           {/* Verified Customer Card Preview */}

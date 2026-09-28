@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
 import { Pagination } from "@/components/pagination";
 import { requireRole } from "@/lib/auth";
@@ -15,25 +15,41 @@ export default async function Customers({
   const user = await requireRole([Role.SUPERVISOR, Role.FINANCE]);
   const { q, page: pageParam } = await searchParams;
   const page = Math.max(1, parseInt(pageParam || "1", 10) || 1);
+  const trimmed = (q || "").trim();
 
-  const where = q
+  // Support numeric job search (e.g. searching "12" or "#12" finds the customer who owns that job order)
+  const jobNum = parseInt(trimmed.replace(/^#/, ""), 10);
+  const hasJobNum = !isNaN(jobNum) && jobNum > 0;
+
+  const where = trimmed
     ? {
         OR: [
-          { name: { contains: q, mode: "insensitive" as const } },
-          { phone: { contains: q, mode: "insensitive" as const } },
-          { email: { contains: q, mode: "insensitive" as const } },
+          { name: { contains: trimmed, mode: "insensitive" as const } },
+          { phone: { contains: trimmed, mode: "insensitive" as const } },
+          { email: { contains: trimmed, mode: "insensitive" as const } },
           {
             vehicles: {
               some: {
                 OR: [
-                  { plate: { contains: q, mode: "insensitive" as const } },
-                  { vin: { contains: q, mode: "insensitive" as const } },
-                  { customModel: { contains: q, mode: "insensitive" as const } },
-                  { model: { name: { contains: q, mode: "insensitive" as const } } },
+                  { plate: { contains: trimmed, mode: "insensitive" as const } },
+                  { vin: { contains: trimmed, mode: "insensitive" as const } },
+                  { customModel: { contains: trimmed, mode: "insensitive" as const } },
+                  { model: { name: { contains: trimmed, mode: "insensitive" as const } } },
                 ],
               },
             },
           },
+          ...(hasJobNum
+            ? [
+                {
+                  jobs: {
+                    some: {
+                      number: jobNum,
+                    },
+                  },
+                },
+              ]
+            : []),
         ],
       }
     : {};
@@ -53,7 +69,7 @@ export default async function Customers({
   ]);
 
   const totalPages = Math.ceil(totalCustomers / PAGE_SIZE) || 1;
-  const isFiltered = Boolean(q);
+  const isFiltered = Boolean(trimmed);
 
   return (
     <main className="content">
@@ -71,14 +87,27 @@ export default async function Customers({
 
       <section className="card">
         <form className="row wrap mb" action="/customers" method="GET">
-          <div style={{ width: 320, flex: "1 1 240px" }}>
-            <label htmlFor="customer-q">Search customer name, phone, VIN or plate</label>
-            <input
-              id="customer-q"
-              name="q"
-              defaultValue={q || ""}
-              placeholder="e.g. Kwame, 0244..., GE-8492, WDD205..."
-            />
+          <div style={{ width: 360, flex: "1 1 260px" }}>
+            <label htmlFor="customer-q">Search customer name, phone, VIN, plate or job #</label>
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              <input
+                id="customer-q"
+                name="q"
+                defaultValue={trimmed}
+                placeholder="Search by name, 024..., GE-8492, W205, or #00012..."
+                style={{ paddingLeft: "36px" }}
+              />
+              <Search
+                size={16}
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: "12px",
+                  color: "var(--muted)",
+                  pointerEvents: "none",
+                }}
+              />
+            </div>
           </div>
           <div className="row" style={{ alignSelf: "end", gap: 8 }}>
             <button type="submit" className="btn btn-secondary">
@@ -134,7 +163,7 @@ export default async function Customers({
           </table>
           {!customers.length && (
             <div className="empty">
-              {isFiltered ? "No matching customers found." : "No customers registered yet."}
+              {isFiltered ? `No matching customers found for "${trimmed}".` : "No customers registered yet."}
             </div>
           )}
         </div>
@@ -145,7 +174,7 @@ export default async function Customers({
           totalCount={totalCustomers}
           pageSize={PAGE_SIZE}
           baseUrl="/customers"
-          searchParams={{ q }}
+          searchParams={{ q: trimmed }}
         />
       </section>
     </main>

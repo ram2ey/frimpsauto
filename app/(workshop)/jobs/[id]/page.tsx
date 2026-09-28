@@ -39,9 +39,21 @@ export default async function JobDetail({
   if (!job) notFound();
 
   const edit = (user.role === Role.SUPERVISOR || user.role === Role.ADMIN) && job.status !== "COMPLETED";
-  const [technicians, parts] = await Promise.all([
+  const [technicians, parts, previousJob] = await Promise.all([
     edit ? db.user.findMany({ where: { role: Role.TECHNICIAN, active: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
     edit ? db.part.findMany({ where: { active: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
+    db.job.findFirst({
+      where: {
+        vehicleId: job.vehicleId,
+        id: { not: job.id },
+        createdAt: { lt: job.createdAt },
+        checklist: { some: {} },
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        checklist: { orderBy: { sortOrder: "asc" } },
+      },
+    }),
   ]);
 
   const total = job.invoice?.items.reduce((sum, item) => sum + item.quantity * item.unitCents, 0) || 0;
@@ -158,7 +170,28 @@ export default async function JobDetail({
         }
         checklist={
           <div className="mb">
-            <JobInspection jobId={id} mileage={job.mileage} items={job.checklist} edit={edit} />
+            <JobInspection
+              jobId={id}
+              mileage={job.mileage}
+              items={job.checklist}
+              edit={edit}
+              previousInspection={
+                previousJob
+                  ? {
+                      id: previousJob.id,
+                      number: previousJob.number,
+                      createdAt: previousJob.createdAt,
+                      mileage: previousJob.mileage,
+                      items: previousJob.checklist.map((c) => ({
+                        id: c.id,
+                        label: c.label,
+                        result: c.result,
+                        note: c.note,
+                      })),
+                    }
+                  : null
+              }
+            />
           </div>
         }
         parts={
