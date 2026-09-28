@@ -1,6 +1,5 @@
 export function money(cents: number) {
-  const currency = process.env.APP_CURRENCY || "GHS";
-  return new Intl.NumberFormat("en", { style: "currency", currency }).format(cents / 100);
+  return new Intl.NumberFormat("en-GH", { style: "currency", currency: "GHS" }).format(cents / 100);
 }
 
 export function date(value: Date | string | null | undefined) {

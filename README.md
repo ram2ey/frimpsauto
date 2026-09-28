@@ -33,7 +33,7 @@ For automated workflow checks, start the app against a disposable database whose
 
 ### Coolify on Hetzner
 
-Deploy this repository as a Docker Compose application on one Hetzner server. Point the Coolify domain at the `app` service, enable HTTPS, and keep PostgreSQL private to the Compose network. Set `POSTGRES_PASSWORD`, `APP_URL`, `BOOTSTRAP_ADMIN_EMAIL`, and `BOOTSTRAP_ADMIN_PASSWORD` in Coolify. `APP_CURRENCY` defaults to `GHS`; change it to the garage's ISO 4217 currency code if needed. Tax is intentionally not calculated. Diagnostic uploads are saved under `/app/storage` in the `diagnostic_files` volume and are only served through the authenticated download route.
+Deploy this repository as a Docker Compose application on one Hetzner server. Point the Coolify domain at the `app` service, enable HTTPS, and keep PostgreSQL private to the Compose network. Set `POSTGRES_PASSWORD`, `APP_URL`, `BOOTSTRAP_ADMIN_EMAIL`, and `BOOTSTRAP_ADMIN_PASSWORD` in Coolify. All amounts use Ghana cedis (GHS). Tax is intentionally not calculated. Diagnostic uploads are saved under `/app/storage` in the `diagnostic_files` volume and are only served through the authenticated download route.
 
 ## Backup and restore
 
