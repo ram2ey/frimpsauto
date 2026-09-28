@@ -1,0 +1,257 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  FINANCE
+  SUPERVISOR
+  TECHNICIAN
+}
+
+enum JobStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_PARTS
+  COMPLETED
+}
+
+enum PartRequestStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  ISSUED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIAL
+  PAID
+}
+
+enum InvoiceItemType {
+  PART
+  LABOR
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  passwordHash  String?
+  role          Role
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  sessions      Session[]
+  invites       Invite[] @relation("InviteTarget")
+  invitedBy     Invite[] @relation("InviteCreator")
+  assignedJobs  Job[]    @relation("AssignedTechnician")
+  createdJobs   Job[]    @relation("JobCreator")
+  uploads       Diagnostic[]
+  stockMoves    StockMovement[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Invite {
+  id          String   @id @default(cuid())
+  tokenHash   String   @unique
+  userId      String
+  createdById String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+  user        User     @relation("InviteTarget", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy   User     @relation("InviteCreator", fields: [createdById], references: [id])
+}
+
+model Customer {
+  id        String    @id @default(cuid())
+  name      String
+  phone     String
+  email     String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  vehicles  Vehicle[]
+  jobs      Job[]
+}
+
+model VehicleModel {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  vehicles  Vehicle[]
+}
+
+model Vehicle {
+  id         String        @id @default(cuid())
+  customerId String
+  modelId    String?
+  customModel String?
+  year       Int
+  vin        String?
+  plate      String?
+  color      String?
+  mileage    Int?
+  createdAt  DateTime      @default(now())
+  customer   Customer      @relation(fields: [customerId], references: [id])
+  model      VehicleModel? @relation(fields: [modelId], references: [id])
+  jobs       Job[]
+
+  @@index([vin])
+  @@index([plate])
+}
+
+model Job {
+  id             String      @id @default(cuid())
+  number         Int         @unique @default(autoincrement())
+  customerId     String
+  vehicleId      String
+  complaint      String
+  findings       String?
+  status         JobStatus   @default(OPEN)
+  technicianId   String?
+  createdById    String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  closedAt       DateTime?
+  customer       Customer    @relation(fields: [customerId], references: [id])
+  vehicle        Vehicle     @relation(fields: [vehicleId], references: [id])
+  technician     User?       @relation("AssignedTechnician", fields: [technicianId], references: [id])
+  createdBy      User        @relation("JobCreator", fields: [createdById], references: [id])
+  checklist      JobChecklistItem[]
+  diagnostics    Diagnostic[]
+  partRequests   PartRequest[]
+  invoice        Invoice?
+
+  @@index([status])
+  @@index([technicianId])
+}
+
+model ChecklistTemplate {
+  id        String                  @id @default(cuid())
+  name      String                  @unique
+  active    Boolean                 @default(true)
+  createdAt DateTime                @default(now())
+  items     ChecklistTemplateItem[]
+}
+
+model ChecklistTemplateItem {
+  id         String            @id @default(cuid())
+  templateId String
+  label      String
+  sortOrder  Int
+  template   ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+model JobChecklistItem {
+  id        String   @id @default(cuid())
+  jobId     String
+  label     String
+  sortOrder Int
+  result    String?
+  note      String?
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}
+
+model Diagnostic {
+  id           String   @id @default(cuid())
+  jobId        String
+  uploadedById String
+  name         String
+  contentType  String
+  size         Int
+  objectKey    String   @unique
+  createdAt    DateTime @default(now())
+  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+}
+
+model Part {
+  id           String          @id @default(cuid())
+  sku          String          @unique
+  name         String
+  priceCents   Int
+  stockQty     Int             @default(0)
+  reorderLevel Int             @default(0)
+  active       Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  requests     PartRequest[]
+  stockMoves   StockMovement[]
+}
+
+model StockMovement {
+  id         String   @id @default(cuid())
+  partId     String
+  userId     String
+  delta      Int
+  reason     String
+  createdAt  DateTime @default(now())
+  part       Part     @relation(fields: [partId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model PartRequest {
+  id            String            @id @default(cuid())
+  jobId         String
+  partId        String
+  requestedQty  Int
+  issuedQty     Int               @default(0)
+  status        PartRequestStatus @default(REQUESTED)
+  note          String?
+  decisionNote  String?
+  createdAt     DateTime          @default(now())
+  decidedAt     DateTime?
+  issuedAt      DateTime?
+  job           Job               @relation(fields: [jobId], references: [id])
+  part          Part              @relation(fields: [partId], references: [id])
+
+  @@index([status])
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  number      Int           @unique @default(autoincrement())
+  jobId       String        @unique
+  status      InvoiceStatus @default(DRAFT)
+  issuedAt    DateTime?
+  createdAt   DateTime      @default(now())
+  job         Job           @relation(fields: [jobId], references: [id])
+  items       InvoiceItem[]
+  payments    Payment[]
+}
+
+model InvoiceItem {
+  id          String          @id @default(cuid())
+  invoiceId   String
+  type        InvoiceItemType
+  description String
+  quantity    Int
+  unitCents   Int
+  requestId   String?         @unique
+  createdAt   DateTime        @default(now())
+  invoice     Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  invoiceId  String
+  amountCents Int
+  method     String
+  reference  String?
+  paidAt     DateTime @default(now())
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
