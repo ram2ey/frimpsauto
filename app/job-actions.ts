@@ -86,26 +86,30 @@ export async function updateFindings(jobId: string, form: FormData) {
   revalidatePath(`/jobs/${jobId}`);
 }
 
-export async function updateChecklist(itemId: string, form: FormData) {
+export async function saveInspectionChecklist(jobId: string, form: FormData) {
   await assertRole(editors);
-  const item = await db.jobChecklistItem.findUnique({ where: { id: itemId }, include: { job: true } });
-  if (!item || item.job.status === JobStatus.COMPLETED) throw new Error("This checklist cannot be edited.");
-  const result = String(form.get("result") || "");
-  if (result && !["PASS", "ATTENTION", "NOT_APPLICABLE"].includes(result)) throw new Error("Invalid checklist result.");
-  await db.jobChecklistItem.update({ where: { id: itemId }, data: { result: result || null, note: String(form.get("note") || "").trim().slice(0, 500) || null } });
-  revalidatePath(`/jobs/${item.jobId}`);
-}
-
-export async function updateJobMileage(jobId: string, form: FormData) {
-  await assertRole(editors);
-  const job = await db.job.findUnique({ where: { id: jobId } });
-  if (!job || job.status === JobStatus.COMPLETED) throw new Error("This job is closed.");
+  if (!form.has("mileage")) throw new Error("Mileage is missing from the checklist.");
   const raw = String(form.get("mileage") || "").trim();
   const mileage = raw ? Number(raw) : null;
   if (mileage !== null && (!Number.isSafeInteger(mileage) || mileage < 0 || mileage > 2147483647)) {
     throw new Error("Mileage must be a valid whole number.");
   }
-  await db.job.update({ where: { id: jobId }, data: { mileage } });
+  await db.$transaction(async tx => {
+    const job = await tx.job.findUnique({ where: { id: jobId }, include: { checklist: true } });
+    if (!job || job.status === JobStatus.COMPLETED) throw new Error("This checklist cannot be edited.");
+    const updates = job.checklist.map(item => {
+      const resultKey = `result:${item.id}`;
+      const noteKey = `note:${item.id}`;
+      if (!form.has(resultKey) || !form.has(noteKey)) throw new Error("A checklist item is missing.");
+      const result = String(form.get(resultKey) || "");
+      if (result && !["PASS", "ATTENTION", "NOT_APPLICABLE"].includes(result)) throw new Error("Invalid checklist result.");
+      return { id: item.id, result: result || null, note: String(form.get(noteKey) || "").trim().slice(0, 500) || null };
+    });
+    await tx.job.update({ where: { id: jobId }, data: { mileage } });
+    for (const update of updates) {
+      await tx.jobChecklistItem.update({ where: { id: update.id }, data: { result: update.result, note: update.note } });
+    }
+  });
   revalidatePath(`/jobs/${jobId}`);
 }
 

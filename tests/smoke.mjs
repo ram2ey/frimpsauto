@@ -171,13 +171,19 @@ async function main() {
 
   const jobHtml = await page(jobPath, supervisorCookie);
   assert.doesNotMatch(intake, /name="mileage"/, "Mileage belongs to the job inspection, not intake");
-  okAction(await submit(jobPath, formFor(jobHtml, "Mileage at this visit"), { mileage: "123450" }, supervisorCookie), "Record job mileage");
+  const inspectionForm = formFor(jobHtml, "Save checklist");
+  assert.equal((inspectionForm.match(/<button\b/g) || []).length, 1, "Inspection checklist has one save button");
+  const inspectionItems = await sql.query('SELECT id FROM "JobChecklistItem" WHERE "jobId"=$1 ORDER BY "sortOrder"', [jobId]);
+  const inspectionFields = { mileage: "123450" };
+  for (const [index, item] of inspectionItems.rows.entries()) {
+    inspectionFields[`result:${item.id}`] = index === 0 ? "PASS" : index === 1 ? "ATTENTION" : "";
+    inspectionFields[`note:${item.id}`] = index === 0 ? "Inspected" : index === 1 ? "Needs brake service" : "";
+  }
+  okAction(await submit(jobPath, inspectionForm, inspectionFields, supervisorCookie), "Save inspection checklist");
   const jobMileage = await sql.query('SELECT mileage FROM "Job" WHERE id=$1', [jobId]);
   assert.equal(jobMileage.rows[0].mileage, 123450);
-  const checklist = await submit(jobPath, formFor(jobHtml, "Not checked"), { result: "PASS", note: "Inspected" }, supervisorCookie);
-  okAction(checklist, "Save checklist");
-  const checked = await sql.query('SELECT result FROM "JobChecklistItem" WHERE "jobId"=$1 ORDER BY "sortOrder" LIMIT 1', [jobId]);
-  assert.equal(checked.rows[0].result, "PASS");
+  const checked = await sql.query('SELECT result, note FROM "JobChecklistItem" WHERE "jobId"=$1 ORDER BY "sortOrder" LIMIT 2', [jobId]);
+  assert.deepEqual(checked.rows.map(row => [row.result, row.note]), [["PASS", "Inspected"], ["ATTENTION", "Needs brake service"]]);
   const financeFindings = await submit(jobPath, formFor(jobHtml, "Save findings"), { findings: "Finance must not edit this" }, financeCookie);
   assert.ok(financeFindings.status >= 400 || financeFindings.status === 303);
   const unchanged = await sql.query('SELECT findings FROM "Job" WHERE id=$1', [jobId]);

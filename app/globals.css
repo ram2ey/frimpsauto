@@ -167,8 +167,9 @@ small { font-size: .75rem; line-height: 1.5; }
 .check-row strong { font-size: .85rem; font-weight: 500; }
 .check-row:last-child { border-bottom: 0; }
 .mileage-row { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
-.mileage-form { display: flex; align-items: center; gap: 8px; max-width: 290px; }
-.mileage-form input { max-width: 150px; }
+.mileage-row input { max-width: 180px; }
+.inspection-edit-row { grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1.2fr); }
+.inspection-save { display: flex; justify-content: flex-end; padding-top: 16px; }
 .hint { font-size: .75rem; color: var(--muted); margin-top: 7px; line-height: 1.6; }
 .number { font-variant-numeric: tabular-nums; }
 .right { text-align: right; }
