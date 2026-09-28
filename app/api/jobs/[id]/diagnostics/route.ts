@@ -25,7 +25,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const contentType = pdf ? "application/pdf" : "image/jpeg";
   const name = file.name.slice(0, 200).replace(/[\\/\r\n]/g, "_") || "diagnostic";
   const objectKey = `diagnostics/${id}/${randomUUID()}.${pdf ? "pdf" : "jpg"}`;
-  await putPrivateObject(objectKey, bytes, contentType);
+  await putPrivateObject(objectKey, bytes);
   await db.diagnostic.create({ data: { jobId: id, uploadedById: user.id, name, size: file.size, contentType, objectKey } });
   return NextResponse.redirect(new URL(`/jobs/${id}`, request.url), { status: 303 });
 }

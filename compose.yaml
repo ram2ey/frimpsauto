@@ -23,14 +23,11 @@ services:
       DATABASE_URL: postgresql://frimps:${POSTGRES_PASSWORD}@db:5432/frimps
       APP_URL: ${APP_URL}
       APP_CURRENCY: ${APP_CURRENCY:-GHS}
-      S3_ENDPOINT: ${S3_ENDPOINT}
-      S3_REGION: ${S3_REGION}
-      S3_BUCKET: ${S3_BUCKET}
-      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
-      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
-      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      DIAGNOSTIC_STORAGE_PATH: /app/storage
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
+    volumes:
+      - diagnostic_files:/app/storage
     expose:
       - "3000"
     healthcheck:
@@ -38,21 +35,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-  backup:
-    build: .
-    restart: unless-stopped
-    depends_on:
-      app:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://frimps:${POSTGRES_PASSWORD}@db:5432/frimps
-      S3_ENDPOINT: ${S3_ENDPOINT}
-      S3_REGION: ${S3_REGION}
-      S3_BUCKET: ${S3_BUCKET}
-      BACKUP_BUCKET: ${BACKUP_BUCKET}
-      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
-      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
-      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
-    command: ["sh", "-c", "while true; do npm run backup; sleep 86400; done"]
 volumes:
   postgres_data:
+  diagnostic_files:

@@ -7,3 +7,4 @@ generated
 coverage
 .test-pg
 .npm-cache
+storage/

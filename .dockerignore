@@ -1,8 +1,9 @@
-node_modules
-.next
-.env
-.env.local
-.npm-cache
 .git
+.next
+node_modules
+.env
+.env.*
+storage
 coverage
-*.tsbuildinfo
+.test-pg
+.npm-cache

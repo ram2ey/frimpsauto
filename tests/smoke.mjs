@@ -96,7 +96,7 @@ async function main() {
   assert.match(await page(jobPath, technicianCookie), /Rough idle and brake inspection/);
   assert.equal((await get("/finance", technicianCookie)).status, 307);
   assert.equal((await get(jobPath, otherTechnicianCookie)).status, 307);
-  if (process.env.SMOKE_S3 === "true") {
+  if (process.env.SMOKE_STORAGE === "true") {
     const upload = new FormData();
     upload.set("file", new Blob(["%PDF-1.4\nFrimps smoke diagnostic\n"], { type: "application/pdf" }), "initial.pdf");
     const uploaded = await fetch(new URL(`/api/jobs/${jobId}/diagnostics`, base), { method: "POST", body: upload, headers: { Cookie: supervisorCookie, Origin: base }, redirect: "manual" });
