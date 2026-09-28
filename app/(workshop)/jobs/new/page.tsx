@@ -12,7 +12,13 @@ export default async function NewJob({
   await requireRole([Role.SUPERVISOR]);
   const { customerId, vehicleId } = (await searchParams) || {};
   const [customers, models, technicians, templates] = await Promise.all([
-    db.customer.findMany({ include: { vehicles: { include: { model: true }, orderBy: { createdAt: "desc" } } }, orderBy: { name: "asc" } }),
+    db.customer.findMany({
+      include: {
+        vehicles: { include: { model: true }, orderBy: { createdAt: "desc" } },
+        _count: { select: { jobs: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
     db.vehicleModel.findMany({ orderBy: { name: "asc" } }),
     db.user.findMany({ where: { role: Role.TECHNICIAN, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     db.checklistTemplate.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
