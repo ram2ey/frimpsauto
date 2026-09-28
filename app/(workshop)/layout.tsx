@@ -1,28 +1,43 @@
 import Link from "next/link";
-import { LayoutDashboard, ClipboardList, UsersRound, Package, ReceiptText, UserCog, ListChecks, LogOut } from "lucide-react";
+import { LogOut, Search, ArrowUpRight } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { logout } from "@/app/auth-actions";
 import { Role } from "@/generated/prisma/client";
 import { BrandLogo } from "@/components/brand-logo";
-
-const links = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/jobs", label: "Job orders", icon: ClipboardList },
-  { href: "/customers", label: "Customers", icon: UsersRound },
-  { href: "/inventory", label: "Parts inventory", icon: Package },
-  { href: "/finance", label: "Finance", icon: ReceiptText },
-];
+import { WorkshopNavigation, WorkshopPageLabel, type WorkshopSection } from "@/components/workshop-navigation";
 
 export default async function WorkshopLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
+  const links: WorkshopSection[] = ["dashboard", "jobs", "customers", "inventory", "finance"];
   const visible = user.role === Role.TECHNICIAN ? links.slice(0, 2) : user.role === Role.SUPERVISOR ? links.slice(0, 4) : links;
+  const administration: WorkshopSection[] = user.role === Role.ADMIN ? ["team", "checklists"] : [];
+  const initials = user.name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("");
+
   return <div className="shell">
+    <a className="skip-link" href="#workshop-content">Skip to content</a>
     <aside className="sidebar">
       <Link href="/dashboard" className="brand-link" aria-label="Frimps Auto dashboard"><BrandLogo /></Link>
-      <nav className="nav-group" aria-label="Main navigation"><div className="nav-caption">Workshop</div>{visible.map(item => <Link className="nav-link" href={item.href} key={item.href}><item.icon size={18} strokeWidth={1.8}/>{item.label}</Link>)}</nav>
-      {user.role === Role.ADMIN && <nav className="nav-group" aria-label="Administration"><div className="nav-caption">Administration</div><Link className="nav-link" href="/team"><UserCog size={18}/>Staff & access</Link><Link className="nav-link" href="/checklists"><ListChecks size={18}/>Checklists</Link></nav>}
-      <div className="side-bottom"><strong>{user.name}</strong><small>{user.role.toLowerCase()}</small><form action={logout}><button className="btn btn-secondary btn-small mt" type="submit"><LogOut size={14}/> Sign out</button></form></div>
+      <form action="/jobs" className="sidebar-search" role="search">
+        <label className="sr-only" htmlFor="workshop-search">Search jobs by customer, VIN or plate</label>
+        <Search size={16} aria-hidden="true" />
+        <input id="workshop-search" name="q" type="search" placeholder="Find a job…" />
+        <button type="submit" aria-label="Search jobs"><ArrowUpRight size={16} aria-hidden="true" /></button>
+      </form>
+      <div><div className="nav-caption">Your workspace</div><WorkshopNavigation items={visible} label="Main navigation" /></div>
+      {!!administration.length && <div className="sidebar-admin"><div className="nav-caption">Administration</div><WorkshopNavigation items={administration} variant="utility" label="Administration" /></div>}
+      <div className="side-bottom">
+        <div className="row"><span className="avatar" aria-hidden="true">{initials}</span><div className="account-copy"><strong>{user.name}</strong><small>{user.role.toLowerCase()}</small></div></div>
+        <form action={logout}><button className="btn btn-secondary btn-small mt" type="submit"><LogOut size={14} aria-hidden="true" /> Sign out</button></form>
+      </div>
     </aside>
-    <div className="main"><header className="topbar"><div className="crumb">Frimps Auto / Workshop</div><div className="row"><span className="pill">{user.role.toLowerCase()}</span><strong style={{ fontSize: ".85rem" }}>{user.name}</strong></div></header><nav className="mobile-nav" aria-label="Mobile navigation">{visible.map(item => <Link href={item.href} key={item.href}>{item.label}</Link>)}{user.role === Role.ADMIN && <><Link href="/team">Staff</Link><Link href="/checklists">Checklists</Link></>}</nav>{children}</div>
+    <div className="main">
+      <header className="topbar">
+        <WorkshopPageLabel />
+        <div className="account-chip"><span className="pill">{user.role.toLowerCase()}</span><span className="account-name">{user.name}</span><span className="avatar" aria-hidden="true">{initials}</span></div>
+        <form action={logout} className="mobile-signout"><button type="submit" className="icon-button" aria-label="Sign out"><LogOut size={17} aria-hidden="true" /></button></form>
+      </header>
+      <WorkshopNavigation items={[...visible, ...administration]} variant="mobile" label="Mobile navigation" />
+      <div id="workshop-content" tabIndex={-1}>{children}</div>
+    </div>
   </div>;
 }

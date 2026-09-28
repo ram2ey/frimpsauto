@@ -96,6 +96,23 @@ async function main() {
   assert.match(await page(jobPath, technicianCookie), /Rough idle and brake inspection/);
   assert.equal((await get("/finance", technicianCookie)).status, 307);
   assert.equal((await get(jobPath, otherTechnicianCookie)).status, 307);
+
+  // Dashboard cards and aggregates must respect the same job access as detail pages.
+  const technicianDashboard = await page("/dashboard", technicianCookie);
+  const technicianMain = technicianDashboard.match(/<main\b[^>]*>[\s\S]*?<\/main>/)?.[0] || "";
+  assert.match(technicianMain, new RegExp(`Smoke Customer ${suffix}`));
+  assert.match(technicianMain, /Assigned to you<\/div><div class="value">1<\/div>/);
+  assert.doesNotMatch(technicianMain, /Outstanding|href="\/jobs\/new"/);
+  const emptyDashboard = await page("/dashboard", otherTechnicianCookie);
+  const emptyMain = emptyDashboard.match(/<main\b[^>]*>[\s\S]*?<\/main>/)?.[0] || "";
+  assert.doesNotMatch(emptyMain, new RegExp(`Smoke Customer ${suffix}`));
+  assert.match(emptyMain, /No jobs have been assigned to you yet/);
+  assert.match(emptyMain, /Assigned to you<\/div><div class="value">0<\/div>/);
+  assert.match(await page("/dashboard", financeCookie), /Outstanding/);
+  assert.match(await page("/dashboard", supervisorCookie), /New job/);
+  assert.match(await page(`/jobs?q=TEST${suffix}`, technicianCookie), new RegExp(`Smoke Customer ${suffix}`));
+  const hiddenSearch = await page(`/jobs?q=TEST${suffix}`, otherTechnicianCookie);
+  assert.match(hiddenSearch, /No matching jobs found/);
   if (process.env.SMOKE_STORAGE === "true") {
     const upload = new FormData();
     upload.set("file", new Blob(["%PDF-1.4\nFrimps smoke diagnostic\n"], { type: "application/pdf" }), "initial.pdf");
@@ -167,7 +184,7 @@ async function main() {
   okAction(await submit(invoicePath, formFor(partialHtml, "Record payment"), { amount: "140.50", method: "Card" }, financeCookie), "Pay balance");
   const paidInvoice = await sql.query('SELECT status FROM "Invoice" WHERE id=$1', [invoiceId]);
   assert.equal(paidInvoice.rows[0].status, "PAID");
-  console.log("Smoke workflow passed: roles, invitations, job, checklist, diagnostic access, parts, stock, invoice and payments.");
+  console.log("Smoke workflow passed: roles, invitations, dashboard access and counts, job search, job, checklist, diagnostic access, parts, stock, invoice and payments.");
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => sql.end());
