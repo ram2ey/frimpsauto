@@ -3,6 +3,7 @@ import { LayoutDashboard, ClipboardList, UsersRound, Package, ReceiptText, UserC
 import { requireUser } from "@/lib/auth";
 import { logout } from "@/app/auth-actions";
 import { Role } from "@/generated/prisma/client";
+import { BrandLogo } from "@/components/brand-logo";
 
 const links = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -17,7 +18,7 @@ export default async function WorkshopLayout({ children }: { children: React.Rea
   const visible = user.role === Role.TECHNICIAN ? links.slice(0, 2) : user.role === Role.SUPERVISOR ? links.slice(0, 4) : links;
   return <div className="shell">
     <aside className="sidebar">
-      <Link href="/dashboard" className="brand">Frimps <span>Auto</span></Link>
+      <Link href="/dashboard" className="brand-link" aria-label="Frimps Auto dashboard"><BrandLogo /></Link>
       <nav className="nav-group" aria-label="Main navigation"><div className="nav-caption">Workshop</div>{visible.map(item => <Link className="nav-link" href={item.href} key={item.href}><item.icon size={18} strokeWidth={1.8}/>{item.label}</Link>)}</nav>
       {user.role === Role.ADMIN && <nav className="nav-group" aria-label="Administration"><div className="nav-caption">Administration</div><Link className="nav-link" href="/team"><UserCog size={18}/>Staff & access</Link><Link className="nav-link" href="/checklists"><ListChecks size={18}/>Checklists</Link></nav>}
       <div className="side-bottom"><strong>{user.name}</strong><small>{user.role.toLowerCase()}</small><form action={logout}><button className="btn btn-secondary btn-small mt" type="submit"><LogOut size={14}/> Sign out</button></form></div>
