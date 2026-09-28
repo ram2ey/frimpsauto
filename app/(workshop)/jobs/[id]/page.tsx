@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { FileText, Plus, CheckCircle2, ArrowUpRight } from "lucide-react";
+import { FileText, Plus, ArrowUpRight } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
 import { JobInspection } from "@/components/job-inspection";
 import { JobTabs } from "@/components/job-tabs";
+import { JobCompleteModal } from "@/components/job-complete-modal";
 import { canViewJob } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
-import { assignTechnician, closeJob, requestPart, updateFindings } from "@/app/job-actions";
+import { assignTechnician, requestPart, updateFindings } from "@/app/job-actions";
 
 export default async function JobDetail({
   params,
@@ -311,10 +312,14 @@ export default async function JobDetail({
 
       {/* Completion Action */}
       {edit && (
-        <form action={closeJob.bind(null, id)} className="mt" style={{ textAlign: "right" }}>
-          <button className="btn btn-teal"><CheckCircle2 size={16} /> Mark job complete</button>
-          <p className="hint">Resolve any pending parts requests before closing.</p>
-        </form>
+        <JobCompleteModal
+          jobId={id}
+          jobNumber={job.number}
+          vehicleTitle={`Mercedes-Benz · ${job.vehicle.year} ${job.vehicle.model?.name || job.vehicle.customModel || "Vehicle"}`}
+          checklistCount={checkedCount}
+          totalChecklistCount={totalCount}
+          partRequests={job.partRequests}
+        />
       )}
     </main>
   );

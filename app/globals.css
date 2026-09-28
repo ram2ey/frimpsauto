@@ -408,6 +408,14 @@ small { font-size: .75rem; line-height: 1.5; }
 .password-toggle-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); cursor: pointer; transition: color .18s ease, background-color .18s ease; }
 .password-toggle-btn:hover { color: var(--ink); background: rgba(8, 96, 160, .08); }
 
+/* Job Completion Action Bar */
+.job-completion-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; background: linear-gradient(135deg, #f4fbf7, #ebf7f0); border: 1px solid #c9e9d6; border-radius: 20px; }
+.job-completion-bar.has-blocker { background: linear-gradient(135deg, #fcf7ef, #f7efe2); border-color: #ecdcc1; }
+@media (max-width: 719px) {
+  .job-completion-bar { flex-direction: column; align-items: stretch; text-align: left; }
+  .job-completion-bar .btn { width: 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
