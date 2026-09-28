@@ -176,6 +176,20 @@ small { font-size: .75rem; line-height: 1.5; }
 .mt { margin-top: 20px; }
 .mb { margin-bottom: 20px; }
 
+/* Job bay banner and operational tabs */
+.job-quick-bar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding: 18px 22px; }
+.job-quick-item { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: .83rem; }
+.job-quick-item small { font-size: .67rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.job-quick-item strong, .job-quick-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job-tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin-bottom: 22px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: #abcde3 transparent; padding-bottom: 2px; }
+.job-tab-btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 16px; border: 1px solid transparent; border-bottom: 2px solid transparent; border-radius: 14px 14px 0 0; font-size: .78rem; font-weight: 500; color: var(--muted); background: transparent; cursor: pointer; white-space: nowrap; transition: all .18s ease; font-family: inherit; }
+.job-tab-btn:hover { color: var(--ink); background: #ffffff80; border-color: #ffffffb3; }
+.job-tab-btn.is-active { color: var(--blue); background: var(--surface); border-color: #ffffffdc #ffffffdc var(--blue); border-bottom: 2px solid var(--blue); font-weight: 600; box-shadow: 0 -4px 12px #2259840a; }
+.job-tab-btn .pill { font-size: .62rem; padding: 2px 7px; border-radius: 99px; }
+.job-tab-panel { min-width: 0; }
+.job-tab-panel[hidden] { display: none; }
+
+
 /* Layered job cards echo the reference's raised card display. */
 .dashboard-heading { margin-bottom: 20px; }
 .dashboard-heading h1 { font-size: clamp(1.9rem, 2.4vw, 2.75rem); }
@@ -284,6 +298,7 @@ small { font-size: .75rem; line-height: 1.5; }
   .login-art { padding: 28px; }
   .login-form { padding: 16px; }
   .login-card { padding: 28px; }
+  .job-quick-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 719px) {
@@ -341,8 +356,11 @@ small { font-size: .75rem; line-height: 1.5; }
   .login-card { padding: 28px 22px; }
   .login-single { padding: 24px 16px; }
   .auth-brand-logo { width: 115px; }
+  .job-quick-bar { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .job-tabs { padding-bottom: 4px; }
+  .job-tab-btn { padding: 9px 12px; font-size: .74rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
