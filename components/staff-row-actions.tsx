@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { KeyRound, Eye, EyeOff, ShieldAlert, X, Wand2 } from "lucide-react";
 import { setStaffActive, setStaffPassword } from "@/app/auth-actions";
+import { SubmitButton } from "@/components/submit-button";
 
 interface StaffMemberProps {
   id: string;
@@ -52,13 +53,13 @@ export function StaffRowActions({ member }: { member: StaffMemberProps }) {
 
         <form action={setStaffActive.bind(null, member.id)}>
           <input type="hidden" name="active" value={member.active ? "false" : "true"} />
-          <button
+          <SubmitButton
             type="submit"
             className={`btn btn-small ${member.active ? "btn-secondary" : "btn-teal"}`}
             title={member.active ? `Disable access for ${member.name}` : `Enable access for ${member.name}`}
           >
             {member.active ? "Disable" : "Enable"}
-          </button>
+          </SubmitButton>
         </form>
       </div>
 
@@ -145,9 +146,9 @@ export function StaffRowActions({ member }: { member: StaffMemberProps }) {
               <button type="button" className="btn btn-secondary btn-small" onClick={closeModal}>
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary btn-small">
+              <SubmitButton type="submit" className="btn btn-primary btn-small" pendingLabel="Saving...">
                 Set password
-              </button>
+              </SubmitButton>
             </div>
           </form>
         </div>

@@ -1,4 +1,5 @@
 import { changePassword, changeUsername } from "@/app/auth-actions";
+import { SubmitButton } from "@/components/submit-button";
 import { requireUser } from "@/lib/auth";
 
 export default async function Account({ searchParams }: { searchParams: Promise<{ error?: string; changed?: string; updated?: string }> }) {
@@ -11,12 +12,12 @@ export default async function Account({ searchParams }: { searchParams: Promise<
       <div><label htmlFor="currentPassword">Current password</label><input id="currentPassword" name="currentPassword" type="password" required autoComplete="current-password"/></div>
       <div><label htmlFor="newPassword">New password</label><input id="newPassword" name="newPassword" type="password" minLength={12} maxLength={72} required autoComplete="new-password"/></div>
       <div><label htmlFor="confirmPassword">Confirm new password</label><input id="confirmPassword" name="confirmPassword" type="password" minLength={12} maxLength={72} required autoComplete="new-password"/></div>
-      <button className="btn btn-primary" style={{ alignSelf: "start" }}>Save password</button>
+      <SubmitButton pendingLabel="Saving password..." style={{ alignSelf: "start" }}>Save password</SubmitButton>
     </form></section>
     <section className="card"><h2>Username</h2><form action={changeUsername} className="stack">
       <div><label htmlFor="username">Username</label><input id="username" name="username" defaultValue={user.username} minLength={3} maxLength={32} pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,31}" required autoComplete="username"/></div>
       <div><label htmlFor="usernamePassword">Current password</label><input id="usernamePassword" name="currentPassword" type="password" required autoComplete="current-password"/></div>
-      <button className="btn btn-secondary" style={{ alignSelf: "start" }}>Save username</button>
+      <SubmitButton className="btn btn-secondary" pendingLabel="Saving username..." style={{ alignSelf: "start" }}>Save username</SubmitButton>
     </form></section></div>
   </main>;
 }

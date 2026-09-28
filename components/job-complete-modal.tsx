@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { CheckCircle2, X, AlertTriangle, Check, PackageCheck, AlertCircle } from "lucide-react";
 import { closeJob } from "@/app/job-actions";
+import { SubmitButton } from "@/components/submit-button";
 
 type PartRequestSummary = {
   id: string;
@@ -208,15 +209,16 @@ export function JobCompleteModal({
               >
                 Keep job open
               </button>
-              <button
+              <SubmitButton
                 type="submit"
                 className="btn btn-teal btn-small"
                 disabled={hasBlockers}
+                pendingLabel="Completing job..."
                 title={hasBlockers ? "Resolve open part requests first" : "Mark job complete"}
               >
                 <CheckCircle2 size={14} aria-hidden="true" />
                 <span>Mark job complete</span>
-              </button>
+              </SubmitButton>
             </div>
           </form>
         </div>

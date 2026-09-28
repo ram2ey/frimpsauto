@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { UserPlus, Eye, EyeOff, Wand2 } from "lucide-react";
 import { createStaff } from "@/app/auth-actions";
+import { SubmitButton } from "@/components/submit-button";
 
 export function StaffCreateCard() {
   const [password, setPassword] = useState("");
@@ -116,9 +117,9 @@ export function StaffCreateCard() {
           </select>
         </div>
 
-        <button className="btn btn-primary" style={{ alignSelf: "start" }}>
+        <SubmitButton pendingLabel="Creating user..." style={{ alignSelf: "start" }}>
           Create user
-        </button>
+        </SubmitButton>
       </form>
     </section>
   );

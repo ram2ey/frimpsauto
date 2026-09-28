@@ -6,6 +6,7 @@ import { JobInspection } from "@/components/job-inspection";
 import { JobTabs } from "@/components/job-tabs";
 import { JobCompleteModal } from "@/components/job-complete-modal";
 import { PrintButton } from "@/components/print-button";
+import { SubmitButton } from "@/components/submit-button";
 import { canViewJob } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
@@ -149,7 +150,7 @@ export default async function JobDetail({
                       {technicians.map(tech => <option key={tech.id} value={tech.id}>{tech.name}</option>)}
                     </select>
                   </div>
-                  <button className="btn btn-secondary">Save</button>
+                  <SubmitButton className="btn btn-secondary" pendingLabel="Saving...">Save</SubmitButton>
                 </form>
               )}
             </section>
@@ -219,7 +220,7 @@ export default async function JobDetail({
                     <input id="requestNote" name="note" placeholder="Why this part is needed" />
                   </div>
                   <div>
-                    <button className="btn btn-primary"><Plus size={16} /> Request part</button>
+                    <SubmitButton pendingLabel="Requesting part..."><Plus size={16} /> Request part</SubmitButton>
                   </div>
                 </form>
               </>
@@ -236,7 +237,7 @@ export default async function JobDetail({
                     <label htmlFor="findings">Supervisor findings</label>
                     <textarea id="findings" name="findings" defaultValue={job.findings || ""} placeholder="Record inspection and diagnostic findings" />
                   </div>
-                  <button className="btn btn-secondary" style={{ alignSelf: "start" }}>Save findings</button>
+                  <SubmitButton className="btn btn-secondary" pendingLabel="Saving findings..." style={{ alignSelf: "start" }}>Save findings</SubmitButton>
                 </form>
               ) : (
                 <p style={{ whiteSpace: "pre-wrap" }}>{job.findings || "No findings recorded yet."}</p>

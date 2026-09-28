@@ -1,5 +1,6 @@
 import { saveInspectionChecklist } from "@/app/job-actions";
 import { Check, AlertTriangle, Minus, CircleDashed } from "lucide-react";
+import { SubmitButton } from "@/components/submit-button";
 
 type InspectionItem = { id: string; label: string; result: string | null; note: string | null };
 
@@ -133,7 +134,7 @@ export function JobInspection({ jobId, mileage, items, edit }: { jobId: string; 
           ))}
 
           <div className="inspection-save">
-            <button className="btn btn-primary">Save checklist</button>
+            <SubmitButton pendingLabel="Saving checklist...">Save checklist</SubmitButton>
           </div>
         </form>
       ) : (

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { changePassword, logout } from "@/app/auth-actions";
 import { BrandLogo } from "@/components/brand-logo";
+import { SubmitButton } from "@/components/submit-button";
 import { currentUser } from "@/lib/auth";
 
 export default async function FirstPasswordChange({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
@@ -16,7 +17,7 @@ export default async function FirstPasswordChange({ searchParams }: { searchPara
       <div><label htmlFor="currentPassword">Temporary password</label><input id="currentPassword" name="currentPassword" type="password" required autoComplete="current-password"/></div>
       <div><label htmlFor="newPassword">New password</label><input id="newPassword" name="newPassword" type="password" minLength={12} maxLength={72} required autoComplete="new-password"/></div>
       <div><label htmlFor="confirmPassword">Confirm new password</label><input id="confirmPassword" name="confirmPassword" type="password" minLength={12} maxLength={72} required autoComplete="new-password"/></div>
-      <button className="btn btn-primary">Save password</button>
+      <SubmitButton pendingLabel="Saving password...">Save password</SubmitButton>
     </form>
     <form action={logout} className="mt"><button className="btn btn-secondary">Sign out</button></form>
   </div></section></main>;

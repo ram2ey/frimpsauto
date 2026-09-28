@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Pencil, X } from "lucide-react";
 import { updateCustomer } from "@/app/customer-actions";
+import { SubmitButton } from "@/components/submit-button";
 
 interface CustomerProfileCardProps {
   id: string;
@@ -72,7 +73,7 @@ export function CustomerProfileCard({
             <textarea id="customer-notes" name="notes" defaultValue={notes || ""} placeholder="Preferences or customer notes" />
           </div>
           <div className="row">
-            <button className="btn btn-primary" type="submit">Save customer</button>
+            <SubmitButton pendingLabel="Saving customer...">Save customer</SubmitButton>
             <button className="btn btn-secondary" type="button" onClick={() => setIsEditing(false)}>Cancel</button>
           </div>
         </form>

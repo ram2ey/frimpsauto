@@ -116,6 +116,25 @@ small { font-size: .75rem; line-height: 1.5; }
 .btn-danger { background: #fff1f0; color: #982f32; border-color: #ebc5c6; }
 .btn-danger:hover:not(:disabled) { background: #ffe4e3; }
 .btn-small { min-height: 36px; padding: 8px 13px; font-size: .72rem; }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+button:disabled[aria-busy="true"] {
+  cursor: wait;
+  opacity: 0.75;
+}
 .icon-button, .round-icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; border: 1px solid #cbdfea; background: #ffffff9c; color: var(--ink); box-shadow: inset 0 1px 0 white; flex-shrink: 0; }
 .icon-button { width: 44px; height: 44px; }
 .icon-button:hover { background: #fff; }

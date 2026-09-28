@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
 import { PrintButton } from "@/components/print-button";
+import { SubmitButton } from "@/components/submit-button";
 
 export default async function InvoiceDetail({ params }: { params: Promise<{ id: string }> }) {
   await requireRole([Role.FINANCE]);
@@ -175,9 +176,9 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
                   <input id="price" name="price" type="number" min="0" step="0.01" required />
                 </div>
               </div>
-              <button className="btn btn-primary" style={{ alignSelf: "start" }}>
+              <SubmitButton pendingLabel="Adding charge..." style={{ alignSelf: "start" }}>
                 Add charge
-              </button>
+              </SubmitButton>
             </form>
           </section>
           <section className="card">
@@ -189,12 +190,13 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
               <dd>{date(invoice.issuedAt)}</dd>
             </dl>
             <form action={issueInvoice.bind(null, id)} className="mt">
-              <button
+              <SubmitButton
                 className="btn btn-teal"
                 disabled={invoice.job.status !== "COMPLETED" || !invoice.items.length}
+                pendingLabel="Issuing invoice..."
               >
                 Issue invoice
-              </button>
+              </SubmitButton>
             </form>
           </section>
         </div>
@@ -257,9 +259,9 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
                 <label htmlFor="reference">Reference (optional)</label>
                 <input id="reference" name="reference" maxLength={100} />
               </div>
-              <button className="btn btn-primary" style={{ alignSelf: "start" }}>
+              <SubmitButton pendingLabel="Recording payment..." style={{ alignSelf: "start" }}>
                 Record payment
-              </button>
+              </SubmitButton>
             </form>
           </section>
         )}

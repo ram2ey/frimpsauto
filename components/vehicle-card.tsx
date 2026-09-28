@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Plus, Pencil, X } from "lucide-react";
 import { updateVehicle } from "@/app/customer-actions";
+import { SubmitButton } from "@/components/submit-button";
 
 interface VehicleCardProps {
   vehicle: {
@@ -119,7 +120,7 @@ export function VehicleCard({ vehicle, customerId, models, edit }: VehicleCardPr
             </div>
           </div>
           <div className="row">
-            <button className="btn btn-primary btn-small" type="submit">Save vehicle</button>
+            <SubmitButton className="btn btn-primary btn-small" pendingLabel="Saving vehicle...">Save vehicle</SubmitButton>
             <button className="btn btn-secondary btn-small" type="button" onClick={() => setIsEditing(false)}>Cancel</button>
           </div>
         </form>
