@@ -14,11 +14,13 @@ const models = [
 ];
 
 async function main() {
-  const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
+  const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase() || null;
+  const username = process.env.BOOTSTRAP_ADMIN_USERNAME?.trim().toLowerCase() || email;
   const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
-  if (email && password) {
+  if (username && password) {
     if (password.length < 12) throw new Error("BOOTSTRAP_ADMIN_PASSWORD must have at least 12 characters.");
-    await db.user.upsert({ where: { email }, create: { name: "Administrator", email, role: Role.ADMIN, passwordHash: await hash(password, 12) }, update: {} });
+    const existingAdmin = await db.user.findFirst({ where: { role: Role.ADMIN } });
+    if (!existingAdmin) await db.user.create({ data: { name: "Administrator", username, email, role: Role.ADMIN, passwordHash: await hash(password, 12), mustChangePassword: true } });
   }
   const startingModels = [...new Set([...models, ...nhtsaModels])];
   for (const name of startingModels) await db.vehicleModel.upsert({ where: { name }, create: { name }, update: {} });

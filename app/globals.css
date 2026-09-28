@@ -73,6 +73,9 @@ small { font-size: .75rem; line-height: 1.5; }
 .account-copy { min-width: 0; }
 .account-copy strong { display: block; font-size: .8rem; font-weight: 500; overflow-wrap: anywhere; }
 .account-copy small { text-transform: capitalize; }
+.account-link:hover strong { color: var(--blue); }
+.staff-password-form { display: flex; align-items: center; gap: 6px; min-width: 230px; }
+.staff-password-form input { min-height: 36px; max-width: 170px; padding: 7px 10px; font-size: .75rem; }
 .avatar { display: inline-flex; align-items: center; justify-content: center; width: 35px; height: 35px; flex-shrink: 0; border-radius: 50%; border: 3px solid #ffffffb0; background: linear-gradient(135deg, #bfdff3, #edf6fc); font-size: .68rem; font-weight: 700; color: var(--blue); }
 .main, #workshop-content { min-width: 0; }
 .topbar { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 32px; }

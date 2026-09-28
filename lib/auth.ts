@@ -26,6 +26,7 @@ export async function currentUser() {
 export async function requireUser() {
   const user = await currentUser();
   if (!user) redirect("/login");
+  if (user.mustChangePassword) redirect("/change-password");
   return user;
 }
 
@@ -37,6 +38,7 @@ export async function requireRole(roles: Role[]) {
 
 export async function assertRole(roles: Role[]) {
   const user = await currentUser();
+  if (user?.mustChangePassword) redirect("/change-password");
   if (!user || (user.role !== Role.ADMIN && !roles.includes(user.role))) {
     throw new Error("You are not allowed to perform this action.");
   }

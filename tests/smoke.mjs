@@ -40,36 +40,67 @@ async function submit(path, form, fields, cookie = "") {
   return fetch(new URL(path, base), { method: "POST", body: data, headers: { Origin: base, ...(cookie ? { Cookie: cookie } : {}) }, redirect: "manual" });
 }
 function okAction(response, label) { assert.ok(response.status === 200 || response.status === 303, `${label}: ${response.status}`); }
-async function signIn(email, password) {
+async function signIn(username, password) {
   const html = await page("/login");
-  const response = await submit("/login", formFor(html, "Sign in"), { email, password });
+  const response = await submit("/login", formFor(html, "Sign in"), { username, password });
   assert.equal(response.status, 303, `Login failed: ${response.status}`);
   const cookie = response.headers.get("set-cookie")?.split(";")[0];
   assert.ok(cookie, "Session cookie missing");
   return cookie;
 }
 async function addUser(role) {
-  const email = `${role.toLowerCase()}-${randomUUID().slice(0, 8)}@local.test`;
+  const username = `${role.toLowerCase()}-${randomUUID().slice(0, 8)}`;
   const password = `local-test-${role}-${suffix}-pass`;
-  const result = await sql.query('INSERT INTO "User" (id,name,email,"passwordHash",role,active,"createdAt") VALUES ($1,$2,$3,$4,$5,true,NOW()) RETURNING id', [randomUUID(), `${role} ${suffix}`, email, await bcrypt.hash(password, 12), role]);
-  return { id: result.rows[0].id, email, password };
+  const result = await sql.query('INSERT INTO "User" (id,name,username,"passwordHash",role,active,"createdAt","mustChangePassword") VALUES ($1,$2,$3,$4,$5,true,NOW(),false) RETURNING id', [randomUUID(), `${role} ${suffix}`, username, await bcrypt.hash(password, 12), role]);
+  return { id: result.rows[0].id, username, password };
 }
 
 async function main() {
   const health = await get("/api/health");
   assert.equal(health.status, 200);
-  if (process.env.SMOKE_ADMIN_EMAIL && process.env.SMOKE_ADMIN_PASSWORD) {
-    const adminCookie = await signIn(process.env.SMOKE_ADMIN_EMAIL, process.env.SMOKE_ADMIN_PASSWORD);
+  const smokeAdminUsername = process.env.SMOKE_ADMIN_USERNAME || process.env.SMOKE_ADMIN_EMAIL;
+  if (smokeAdminUsername && process.env.SMOKE_ADMIN_PASSWORD) {
+    let adminCookie = await signIn(smokeAdminUsername, process.env.SMOKE_ADMIN_PASSWORD);
+    const adminGate = await get("/team", adminCookie);
+    if (adminGate.status === 307) {
+      assert.equal(new URL(adminGate.headers.get("location"), base).pathname, "/change-password");
+      const firstChange = await page("/change-password", adminCookie);
+      const changed = await submit("/change-password", formFor(firstChange, "Save password"), { currentPassword: process.env.SMOKE_ADMIN_PASSWORD, newPassword: `admin-new-${suffix}-password`, confirmPassword: `admin-new-${suffix}-password` }, adminCookie);
+      assert.equal(changed.status, 303);
+      adminCookie = changed.headers.get("set-cookie")?.split(";")[0] || adminCookie;
+    }
     const teamHtml = await page("/team", adminCookie);
-    const inviteEmail = `invited-${suffix}@local.test`;
-    const invited = await submit("/team", formFor(teamHtml, "Create invitation"), { name: `Invited ${suffix}`, email: inviteEmail, role: "TECHNICIAN" }, adminCookie);
-    assert.equal(invited.status, 303);
-    const invitePath = new URL(invited.headers.get("location"), base).searchParams.get("invite");
-    assert.ok(invitePath);
-    const activationPath = `/invite/${invitePath}`;
-    const activationHtml = await page(activationPath);
-    assert.equal((await submit(activationPath, formFor(activationHtml, "Activate account"), { password: `invite-${suffix}-password` })).status, 303);
-    await signIn(inviteEmail, `invite-${suffix}-password`);
+    const newUsername = `created-${suffix}`;
+    const temporaryPassword = `temporary-${suffix}-password`;
+    const created = await submit("/team", formFor(teamHtml, "Create user"), { name: `Created ${suffix}`, username: newUsername, password: temporaryPassword, role: "TECHNICIAN" }, adminCookie);
+    assert.equal(created.status, 303);
+    const createdUser = await sql.query('SELECT id,"mustChangePassword" FROM "User" WHERE username=$1', [newUsername]);
+    assert.equal(createdUser.rows[0].mustChangePassword, true);
+    let staffCookie = await signIn(newUsername, temporaryPassword);
+    const forced = await get("/dashboard", staffCookie);
+    assert.equal(new URL(forced.headers.get("location"), base).pathname, "/change-password");
+    const passwordPage = await page("/change-password", staffCookie);
+    const ownPassword = `new-${suffix}-password`;
+    const firstPassword = await submit("/change-password", formFor(passwordPage, "Save password"), { currentPassword: temporaryPassword, newPassword: ownPassword, confirmPassword: ownPassword }, staffCookie);
+    assert.equal(new URL(firstPassword.headers.get("location"), base).pathname, "/dashboard");
+    staffCookie = firstPassword.headers.get("set-cookie")?.split(";")[0] || staffCookie;
+    await page("/dashboard", staffCookie);
+    const accountHtml = await page("/account", staffCookie);
+    const secondPassword = `changed-${suffix}-password`;
+    const changedAgain = await submit("/account", formFor(accountHtml, "Save password"), { currentPassword: ownPassword, newPassword: secondPassword, confirmPassword: secondPassword }, staffCookie);
+    assert.equal(changedAgain.status, 303);
+    staffCookie = changedAgain.headers.get("set-cookie")?.split(";")[0] || staffCookie;
+    const renamedUsername = `renamed-${suffix}`;
+    const updatedAccount = await page("/account", staffCookie);
+    const renamed = await submit("/account", formFor(updatedAccount, "Save username"), { username: renamedUsername, currentPassword: secondPassword }, staffCookie);
+    assert.equal(renamed.status, 303);
+    await signIn(renamedUsername, secondPassword);
+    const refreshedTeam = await page("/team", adminCookie);
+    const resetPassword = `reset-${suffix}-password`;
+    okAction(await submit("/team", formFor(refreshedTeam, `id="password-${createdUser.rows[0].id}"`), { password: resetPassword }, adminCookie), "Reset staff password");
+    assert.equal(new URL((await get("/dashboard", staffCookie)).headers.get("location"), base).pathname, "/login");
+    const resetCookie = await signIn(renamedUsername, resetPassword);
+    assert.equal(new URL((await get("/dashboard", resetCookie)).headers.get("location"), base).pathname, "/change-password");
     const checklistHtml = await page("/checklists", adminCookie);
     okAction(await submit("/checklists", formFor(checklistHtml, "Create template"), { name: `Smoke checklist ${suffix}`, items: "Lights\nBrakes" }, adminCookie), "Create template");
     const createdTemplate = await sql.query('SELECT id FROM "ChecklistTemplate" WHERE name=$1', [`Smoke checklist ${suffix}`]);
@@ -83,10 +114,10 @@ async function main() {
   const technician = await addUser("TECHNICIAN");
   const otherTechnician = await addUser("TECHNICIAN");
   const finance = await addUser("FINANCE");
-  const supervisorCookie = await signIn(supervisor.email, supervisor.password);
-  const technicianCookie = await signIn(technician.email, technician.password);
-  const otherTechnicianCookie = await signIn(otherTechnician.email, otherTechnician.password);
-  const financeCookie = await signIn(finance.email, finance.password);
+  const supervisorCookie = await signIn(supervisor.username, supervisor.password);
+  const technicianCookie = await signIn(technician.username, technician.password);
+  const otherTechnicianCookie = await signIn(otherTechnician.username, otherTechnician.password);
+  const financeCookie = await signIn(finance.username, finance.password);
   const template = await sql.query('SELECT id FROM "ChecklistTemplate" LIMIT 1');
   const intake = await page("/jobs/new", supervisorCookie);
   const jobResponse = await submit("/jobs/new", formFor(intake, "Create job order"), {
@@ -194,7 +225,7 @@ async function main() {
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   assert.ok(pdf.includes(Buffer.from("/Subtype /Image")), "Invoice PDF must contain the logo");
   assert.ok(pdf.includes(Buffer.from(`Smoke Customer ${suffix}`)), "Invoice PDF must contain the customer");
-  if (process.env.SMOKE_ADMIN_EMAIL && process.env.SMOKE_ADMIN_PASSWORD) assert.ok(pdf.includes(Buffer.from(`Frimps Smoke ${suffix}`)), "Invoice PDF must contain saved business details");
+  if (smokeAdminUsername && process.env.SMOKE_ADMIN_PASSWORD) assert.ok(pdf.includes(Buffer.from(`Frimps Smoke ${suffix}`)), "Invoice PDF must contain saved business details");
   okAction(await submit(invoicePath, formFor(issuedInvoice, "Record payment"), { amount: "50.00", method: "Cash" }, financeCookie), "Record payment");
   const balance = await sql.query('SELECT i.status, COALESCE((SELECT SUM(quantity*"unitCents") FROM "InvoiceItem" WHERE "invoiceId"=i.id),0) AS total, COALESCE((SELECT SUM("amountCents") FROM "Payment" WHERE "invoiceId"=i.id),0) AS paid FROM "Invoice" i WHERE i.id=$1', [invoiceId]);
   assert.equal(balance.rows[0].status, "PARTIAL");
@@ -203,7 +234,7 @@ async function main() {
   okAction(await submit(invoicePath, formFor(partialHtml, "Record payment"), { amount: "140.50", method: "Card" }, financeCookie), "Pay balance");
   const paidInvoice = await sql.query('SELECT status FROM "Invoice" WHERE id=$1', [invoiceId]);
   assert.equal(paidInvoice.rows[0].status, "PAID");
-  console.log("Smoke workflow passed: roles, invitations, dashboard access and counts, job search, job, checklist, diagnostic access, parts, stock, invoice and payments.");
+  console.log("Smoke workflow passed: roles, staff creation, password changes, dashboard access and counts, job search, job, checklist, diagnostic access, parts, stock, invoice and payments.");
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => sql.end());

@@ -1,23 +1,34 @@
 "use server";
 
 import { compare, hash } from "bcryptjs";
-import { randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Role } from "@/generated/prisma/client";
-import { assertRole, clearSession, createSession, hashToken } from "@/lib/auth";
+import { assertRole, clearSession, createSession, currentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/format";
 
+function validPassword(password: string) {
+  return password.length >= 12 && Buffer.byteLength(password, "utf8") <= 72;
+}
+
+function usernameFromForm(value: FormDataEntryValue | null) {
+  const username = String(value || "").trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(username)) {
+    throw new Error("Username must be 3 to 32 characters using letters, numbers, dots, dashes or underscores.");
+  }
+  return username;
+}
+
 export async function login(form: FormData) {
-  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  const username = String(form.get("username") ?? "").trim().toLowerCase();
   const password = String(form.get("password") ?? "");
-  const user = await db.user.findUnique({ where: { email } });
+  const user = await db.user.findUnique({ where: { username } });
   if (!user?.active || !user.passwordHash || !(await compare(password, user.passwordHash))) {
-    redirect("/login?error=Invalid%20email%20or%20password");
+    redirect("/login?error=Invalid%20username%20or%20password");
   }
   await createSession(user.id);
-  redirect("/dashboard");
+  redirect(user.mustChangePassword ? "/change-password" : "/dashboard");
 }
 
 export async function logout() {
@@ -25,43 +36,69 @@ export async function logout() {
   redirect("/login");
 }
 
-export async function inviteStaff(form: FormData) {
-  const actor = await assertRole([Role.ADMIN]);
+export async function createStaff(form: FormData) {
+  await assertRole([Role.ADMIN]);
   const name = text(form.get("name"), "Name", 100);
-  const email = text(form.get("email"), "Email", 200).toLowerCase();
+  const username = usernameFromForm(form.get("username"));
+  const password = String(form.get("password") ?? "");
   const role = String(form.get("role"));
+  if (!validPassword(password)) redirect("/team?error=Temporary%20password%20must%20be%2012%20to%2072%20bytes");
   if (!Object.values(Role).includes(role as Role)) throw new Error("Invalid staff role.");
-  const existing = await db.user.findUnique({ where: { email } });
-  if (existing?.passwordHash) throw new Error("This staff member already has an account.");
-  const user = existing
-    ? await db.user.update({ where: { id: existing.id }, data: { name, role: role as Role, active: true } })
-    : await db.user.create({ data: { name, email, role: role as Role } });
-  const token = randomBytes(32).toString("hex");
-  await db.invite.create({
-    data: {
-      userId: user.id,
-      createdById: actor.id,
-      tokenHash: hashToken(token),
-      expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
-    },
-  });
+  if (await db.user.findUnique({ where: { username } })) redirect("/team?error=Username%20is%20already%20in%20use");
+  await db.user.create({ data: { name, username, passwordHash: await hash(password, 12), role: role as Role, mustChangePassword: true } });
   revalidatePath("/team");
-  redirect(`/team?invite=${token}`);
+  redirect("/team?created=1");
 }
 
-export async function acceptInvite(token: string, form: FormData) {
+export async function setStaffPassword(userId: string, form: FormData) {
+  const actor = await assertRole([Role.ADMIN]);
+  if (actor.id === userId) throw new Error("Change your own password from Account.");
   const password = String(form.get("password") ?? "");
-  if (password.length < 12) redirect(`/invite/${token}?error=Password%20must%20have%20at%20least%2012%20characters`);
-  const invite = await db.invite.findUnique({ where: { tokenHash: hashToken(token) }, include: { user: true } });
-  if (!invite || invite.usedAt || invite.expiresAt < new Date() || !invite.user.active) redirect("/login?error=Invitation%20expired");
+  if (!validPassword(password)) redirect("/team?error=Temporary%20password%20must%20be%2012%20to%2072%20bytes");
   const passwordHash = await hash(password, 12);
   await db.$transaction(async tx => {
-    const claimed = await tx.invite.updateMany({ where: { id: invite.id, usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
-    if (!claimed.count) throw new Error("Invitation expired or already used.");
-    await tx.user.update({ where: { id: invite.userId }, data: { passwordHash } });
+    await tx.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: true } });
+    await tx.session.deleteMany({ where: { userId } });
   });
-  await createSession(invite.userId);
-  redirect("/dashboard");
+  revalidatePath("/team");
+  redirect("/team?reset=1");
+}
+
+export async function changePassword(form: FormData) {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const destination = user.mustChangePassword ? "/change-password" : "/account";
+  const currentPassword = String(form.get("currentPassword") ?? "");
+  const newPassword = String(form.get("newPassword") ?? "");
+  const confirmation = String(form.get("confirmPassword") ?? "");
+  if (!user.passwordHash || !(await compare(currentPassword, user.passwordHash))) {
+    redirect(`${destination}?error=Current%20password%20is%20incorrect`);
+  }
+  if (!validPassword(newPassword)) redirect(`${destination}?error=New%20password%20must%20be%2012%20to%2072%20bytes`);
+  if (newPassword !== confirmation) redirect(`${destination}?error=Passwords%20do%20not%20match`);
+  if (await compare(newPassword, user.passwordHash)) redirect(`${destination}?error=Choose%20a%20different%20password`);
+  const passwordHash = await hash(newPassword, 12);
+  await db.$transaction(async tx => {
+    await tx.user.update({ where: { id: user.id }, data: { passwordHash, mustChangePassword: false } });
+    await tx.session.deleteMany({ where: { userId: user.id } });
+  });
+  await createSession(user.id);
+  redirect(user.mustChangePassword ? "/dashboard" : "/account?changed=1");
+}
+
+export async function changeUsername(form: FormData) {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  if (user.mustChangePassword) redirect("/change-password");
+  const currentPassword = String(form.get("currentPassword") ?? "");
+  if (!user.passwordHash || !(await compare(currentPassword, user.passwordHash))) redirect("/account?error=Current%20password%20is%20incorrect");
+  const username = usernameFromForm(form.get("username"));
+  if (username !== user.username) {
+    if (await db.user.findUnique({ where: { username } })) redirect("/account?error=Username%20is%20already%20in%20use");
+    await db.user.update({ where: { id: user.id }, data: { username } });
+  }
+  revalidatePath("/account");
+  redirect("/account?updated=1");
 }
 
 export async function setStaffActive(userId: string, form: FormData) {

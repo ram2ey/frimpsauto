@@ -2,5 +2,6 @@ import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 
 export default async function Home() {
-  redirect((await currentUser()) ? "/dashboard" : "/login");
+  const user = await currentUser();
+  redirect(user ? user.mustChangePassword ? "/change-password" : "/dashboard" : "/login");
 }

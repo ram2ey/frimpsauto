@@ -43,14 +43,14 @@ enum InvoiceItemType {
 model User {
   id            String   @id @default(cuid())
   name          String
-  email         String   @unique
+  username      String   @unique
+  email         String?  @unique
   passwordHash  String?
+  mustChangePassword Boolean @default(false)
   role          Role
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
   sessions      Session[]
-  invites       Invite[] @relation("InviteTarget")
-  invitedBy     Invite[] @relation("InviteCreator")
   assignedJobs  Job[]    @relation("AssignedTechnician")
   createdJobs   Job[]    @relation("JobCreator")
   uploads       Diagnostic[]
@@ -64,18 +64,6 @@ model Session {
   expiresAt DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Invite {
-  id          String   @id @default(cuid())
-  tokenHash   String   @unique
-  userId      String
-  createdById String
-  expiresAt   DateTime
-  usedAt      DateTime?
-  createdAt   DateTime @default(now())
-  user        User     @relation("InviteTarget", fields: [userId], references: [id], onDelete: Cascade)
-  createdBy   User     @relation("InviteCreator", fields: [createdById], references: [id])
 }
 
 model Customer {

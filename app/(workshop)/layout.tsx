@@ -26,17 +26,17 @@ export default async function WorkshopLayout({ children }: { children: React.Rea
       <div className="sidebar-menu"><WorkshopNavigation items={visible} label="Main navigation" />
       {!!administration.length && <div className="sidebar-admin"><WorkshopNavigation items={administration} variant="utility" label="Administration" /></div>}</div>
       <div className="side-bottom">
-        <div className="row"><span className="avatar" aria-hidden="true">{initials}</span><div className="account-copy"><strong>{user.name}</strong></div></div>
+        <Link href="/account" className="row account-link"><span className="avatar" aria-hidden="true">{initials}</span><div className="account-copy"><strong>{user.name}</strong><small>Account · Change password</small></div></Link>
         <form action={logout}><button className="btn btn-secondary btn-small mt" type="submit"><LogOut size={14} aria-hidden="true" /> Sign out</button></form>
       </div>
     </aside>
     <div className="main">
       <header className="topbar">
         <WorkshopPageLabel />
-        <div className="account-chip"><span className="account-name">{user.name}</span><span className="avatar" aria-hidden="true">{initials}</span></div>
+        <Link href="/account" className="account-chip" aria-label="Account and password"><span className="account-name">{user.name}</span><span className="avatar" aria-hidden="true">{initials}</span></Link>
         <form action={logout} className="mobile-signout"><button type="submit" className="icon-button" aria-label="Sign out"><LogOut size={17} aria-hidden="true" /></button></form>
       </header>
-      <WorkshopNavigation items={[...visible, ...administration]} variant="mobile" label="Mobile navigation" />
+      <WorkshopNavigation items={[...visible, ...administration, "account"]} variant="mobile" label="Mobile navigation" />
       <div id="workshop-content" tabIndex={-1}>{children}</div>
     </div>
   </div>;
