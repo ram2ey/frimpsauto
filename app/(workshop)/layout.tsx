@@ -16,7 +16,7 @@ export default async function WorkshopLayout({ children }: { children: React.Rea
   return <div className="shell">
     <a className="skip-link" href="#workshop-content">Skip to content</a>
     <aside className="sidebar">
-      <Link href="/dashboard" className="brand-link" aria-label="Frimps Auto dashboard"><BrandLogo /></Link>
+      <Link href="/dashboard" className="brand-link" aria-label="Frimps Auto dashboard"><BrandLogo priority /></Link>
       <form action="/jobs" className="sidebar-search" role="search">
         <label className="sr-only" htmlFor="workshop-search">Search jobs by customer, VIN or plate</label>
         <Search size={16} aria-hidden="true" />

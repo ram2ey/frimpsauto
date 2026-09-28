@@ -1,12 +1,20 @@
 import Image from "next/image";
 
-export function BrandLogo({ className = "" }: { className?: string }) {
-  return <Image
-    src="/frimps-logo.jpeg"
-    alt="Frimps MB Autoboss"
-    width={1500}
-    height={1500}
-    unoptimized
-    className={`brand-logo ${className}`.trim()}
-  />;
+interface BrandLogoProps {
+  className?: string;
+  priority?: boolean;
+}
+
+export function BrandLogo({ className = "", priority = false }: BrandLogoProps) {
+  return (
+    <Image
+      src="/frimps-logo.jpeg"
+      alt="Frimps MB Autoboss"
+      width={160}
+      height={160}
+      priority={priority}
+      sizes="(max-width: 640px) 120px, 160px"
+      className={`brand-logo ${className}`.trim()}
+    />
+  );
 }

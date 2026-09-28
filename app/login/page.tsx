@@ -6,7 +6,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   const { error } = await searchParams;
   return <main className="login-wrap login-single">
     <section className="login-form"><div className="login-card">
-      <BrandLogo className="auth-brand-logo" />
+      <BrandLogo className="auth-brand-logo" priority />
       <h1>Sign in</h1>
       {error && <div className="notice">{error}</div>}
       <form action={login} className="stack">

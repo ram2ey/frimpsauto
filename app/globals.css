@@ -716,6 +716,42 @@ button:disabled[aria-busy="true"] {
   border-color: #317cae;
 }
 
+.pagination-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid #dceaf4;
+  margin-top: 12px;
+}
+.pagination-info {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.pagination-info strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pagination-page-indicator {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+.btn.disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
