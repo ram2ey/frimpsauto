@@ -14,13 +14,15 @@ const models = [
 ];
 
 async function main() {
-  const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase() || null;
-  const username = process.env.BOOTSTRAP_ADMIN_USERNAME?.trim().toLowerCase() || email;
+  const username = process.env.BOOTSTRAP_ADMIN_USERNAME?.trim().toLowerCase();
   const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
-  if (username && password) {
-    if (password.length < 12) throw new Error("BOOTSTRAP_ADMIN_PASSWORD must have at least 12 characters.");
-    const existingAdmin = await db.user.findFirst({ where: { role: Role.ADMIN } });
-    if (!existingAdmin) await db.user.create({ data: { name: "Administrator", username, email, role: Role.ADMIN, passwordHash: await hash(password, 12), mustChangePassword: true } });
+  const existingAdmin = await db.user.findFirst({ where: { role: Role.ADMIN } });
+  if (!existingAdmin) {
+    if (!username || !password) throw new Error("Set BOOTSTRAP_ADMIN_USERNAME and BOOTSTRAP_ADMIN_PASSWORD to create the first admin.");
+    if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(username)) throw new Error("BOOTSTRAP_ADMIN_USERNAME must be 3 to 32 characters using letters, numbers, dots, dashes or underscores.");
+    if (password.length < 12 || Buffer.byteLength(password, "utf8") > 72) throw new Error("BOOTSTRAP_ADMIN_PASSWORD must be 12 to 72 bytes.");
+    if (await db.user.findUnique({ where: { username } })) throw new Error("BOOTSTRAP_ADMIN_USERNAME is already in use.");
+    await db.user.create({ data: { name: "Administrator", username, role: Role.ADMIN, passwordHash: await hash(password, 12), mustChangePassword: true } });
   }
   const startingModels = [...new Set([...models, ...nhtsaModels])];
   for (const name of startingModels) await db.vehicleModel.upsert({ where: { name }, create: { name }, update: {} });
