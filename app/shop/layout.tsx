@@ -6,6 +6,7 @@ import { logout } from "@/app/auth-actions";
 import { Role } from "@/generated/prisma/client";
 import { BrandLogo } from "@/components/brand-logo";
 import { ShopNavigation, ShopPageLabel } from "@/components/shop-navigation";
+import { MobileNavDrawer } from "@/components/mobile-nav-drawer";
 
 const allowedRoles: Role[] = [Role.SHOP_STAFF, Role.ADMIN, Role.FINANCE];
 
@@ -107,12 +108,15 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
 
       <div className="main">
         <header className="topbar">
-          <ShopPageLabel />
-          <div className="row" style={{ alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            <MobileNavDrawer user={user} portal="shop" logoutAction={logout} />
+            <ShopPageLabel />
+          </div>
+          <div className="row" style={{ alignItems: "center", gap: 8, flexShrink: 0 }}>
             {isWorkshopManager && (
               <Link
                 href="/dashboard"
-                className="btn btn-secondary btn-small no-print"
+                className="btn btn-secondary btn-small no-print shop-topbar-switch"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -138,8 +142,6 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
             </form>
           </div>
         </header>
-
-        <ShopNavigation variant="mobile" label="Mobile shop navigation" />
 
         <div id="shop-content" tabIndex={-1}>
           {children}
