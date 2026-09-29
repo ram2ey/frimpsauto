@@ -243,7 +243,7 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
           Thank you for choosing Frimps Auto · Mercedes-Benz Specialist Care
         </p>
         <p style={{ margin: "2px 0 0", color: "#9ca3af" }}>
-          Official receipt for services rendered. Inquiries: {business?.phone || "+233543026391"}
+          Official receipt for services rendered. Inquiries: {business?.phone || "+233543263981"}
         </p>
       </footer>
     </main>
