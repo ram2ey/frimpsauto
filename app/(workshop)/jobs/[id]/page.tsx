@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { FileText, Plus, ArrowUpRight } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
 import { JobInspection } from "@/components/job-inspection";
+import { JobComplaint } from "@/components/job-complaint";
 import { JobTabs } from "@/components/job-tabs";
 import { JobCompleteModal } from "@/components/job-complete-modal";
 import { PrintButton } from "@/components/print-button";
@@ -146,8 +147,7 @@ export default async function JobDetail({
 
             <section className="card">
               <div className="section-title"><h2>Job details</h2></div>
-              <p className="muted" style={{ fontSize: ".75rem", textTransform: "uppercase", fontWeight: 800 }}>Customer complaint</p>
-              <p style={{ whiteSpace: "pre-wrap" }}>{job.complaint}</p>
+              <JobComplaint jobId={id} complaint={job.complaint} editable={edit} />
               <div className="divider" />
               <dl className="detail-list">
                 <dt>Technician</dt><dd>{job.technician?.name || "Unassigned"}</dd>

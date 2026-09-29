@@ -86,6 +86,23 @@ export async function updateFindings(jobId: string, form: FormData) {
   revalidatePath(`/jobs/${jobId}`);
 }
 
+export async function updateComplaint(jobId: string, form: FormData) {
+  await assertRole(editors);
+  const complaint = text(form.get("complaint"), "Customer complaint", 3000);
+  const job = await db.job.findUnique({ where: { id: jobId } });
+  if (!job) throw new Error("Job not found.");
+  if (job.status === JobStatus.COMPLETED) {
+    throw new Error("Customer complaint cannot be edited after job completion.");
+  }
+  await db.job.update({
+    where: { id: jobId },
+    data: { complaint },
+  });
+  revalidatePath(`/jobs/${jobId}`);
+  revalidatePath("/jobs");
+  revalidatePath(`/customers/${job.customerId}`);
+}
+
 export async function saveInspectionChecklist(jobId: string, form: FormData) {
   await assertRole(editors);
   if (!form.has("mileage")) throw new Error("Mileage is missing from the checklist.");
