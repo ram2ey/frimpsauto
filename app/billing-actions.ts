@@ -29,6 +29,21 @@ export async function addLabor(invoiceId: string, form: FormData) {
   revalidatePath("/finance");
 }
 
+export async function updateLabor(itemId: string, form: FormData) {
+  await assertRole([Role.FINANCE]);
+  const description = text(form.get("description"), "Description", 250);
+  const quantity = positiveInt(form.get("quantity"), "Quantity");
+  const unitCents = amountFromForm(form.get("price"));
+  const item = await db.$transaction(async tx => {
+    const found = await tx.invoiceItem.findUnique({ where: { id: itemId }, include: { invoice: true } });
+    if (!found || found.type !== "LABOR" || found.invoice.status !== "DRAFT") throw new Error("This labor line cannot be edited.");
+    await tx.invoiceItem.update({ where: { id: itemId }, data: { description, quantity, unitCents } });
+    return found;
+  }, { isolationLevel: "Serializable" });
+  revalidatePath(`/finance/invoices/${item.invoiceId}`);
+  revalidatePath("/finance");
+}
+
 export async function removeLabor(itemId: string) {
   await assertRole([Role.FINANCE]);
   const item = await db.$transaction(async tx => {
@@ -38,6 +53,138 @@ export async function removeLabor(itemId: string) {
     return found;
   }, { isolationLevel: "Serializable" });
   revalidatePath(`/finance/invoices/${item.invoiceId}`);
+}
+
+export async function updatePartItem(itemId: string, form: FormData) {
+  const actor = await assertRole([Role.ADMIN]);
+  const newQty = positiveInt(form.get("quantity"), "Quantity");
+  const unitCents = amountFromForm(form.get("price"));
+  const description = text(form.get("description"), "Description", 250);
+  const reason = String(form.get("reason") || "").trim().slice(0, 300) || "Admin invoice adjustment";
+
+  const item = await db.$transaction(async tx => {
+    const found = await tx.invoiceItem.findUnique({
+      where: { id: itemId },
+      include: { invoice: { include: { job: true } } },
+    });
+    if (!found || found.type !== "PART" || found.invoice.status !== "DRAFT") {
+      throw new Error("Only parts on draft invoices can be edited by an admin.");
+    }
+
+    if (found.requestId) {
+      const partRequest = await tx.partRequest.findUnique({
+        where: { id: found.requestId },
+        include: { part: true },
+      });
+      if (partRequest) {
+        const delta = found.quantity - newQty; // positive: returning items; negative: taking more
+        if (delta > 0) {
+          // Returning delta items back to inventory stock
+          await tx.part.update({
+            where: { id: partRequest.partId },
+            data: { stockQty: { increment: delta } },
+          });
+          await tx.stockMovement.create({
+            data: {
+              partId: partRequest.partId,
+              userId: actor.id,
+              delta,
+              reason: `Returned from Job #${found.invoice.job.number} (INV-${String(found.invoice.number).padStart(5, "0")}): ${reason}`,
+            },
+          });
+          await tx.partRequest.update({
+            where: { id: partRequest.id },
+            data: { issuedQty: newQty },
+          });
+        } else if (delta < 0) {
+          // Additional quantity needed from stock
+          const additional = -delta;
+          const updated = await tx.part.updateMany({
+            where: { id: partRequest.partId, stockQty: { gte: additional } },
+            data: { stockQty: { decrement: additional } },
+          });
+          if (!updated.count) {
+            throw new Error(`Insufficient stock. Only ${partRequest.part.stockQty} units available.`);
+          }
+          await tx.stockMovement.create({
+            data: {
+              partId: partRequest.partId,
+              userId: actor.id,
+              delta: -additional,
+              reason: `Additional units issued to Job #${found.invoice.job.number} (INV-${String(found.invoice.number).padStart(5, "0")}): ${reason}`,
+            },
+          });
+          await tx.partRequest.update({
+            where: { id: partRequest.id },
+            data: { issuedQty: newQty },
+          });
+        }
+      }
+    }
+
+    await tx.invoiceItem.update({
+      where: { id: itemId },
+      data: { description, quantity: newQty, unitCents },
+    });
+
+    return found;
+  }, { isolationLevel: "Serializable" });
+
+  revalidatePath(`/finance/invoices/${item.invoiceId}`);
+  revalidatePath("/finance");
+  revalidatePath("/inventory");
+}
+
+export async function returnPartItem(itemId: string, form?: FormData) {
+  const actor = await assertRole([Role.ADMIN]);
+  const reason = form ? String(form.get("reason") || "").trim().slice(0, 300) : "";
+
+  const item = await db.$transaction(async tx => {
+    const found = await tx.invoiceItem.findUnique({
+      where: { id: itemId },
+      include: { invoice: { include: { job: true } } },
+    });
+    if (!found || found.type !== "PART" || found.invoice.status !== "DRAFT") {
+      throw new Error("Only parts on draft invoices can be returned by an admin.");
+    }
+
+    if (found.requestId) {
+      const partRequest = await tx.partRequest.findUnique({
+        where: { id: found.requestId },
+      });
+      if (partRequest) {
+        // Return full quantity back to stock
+        await tx.part.update({
+          where: { id: partRequest.partId },
+          data: { stockQty: { increment: found.quantity } },
+        });
+        await tx.stockMovement.create({
+          data: {
+            partId: partRequest.partId,
+            userId: actor.id,
+            delta: found.quantity,
+            reason: `Returned to stock from Job #${found.invoice.job.number} (INV-${String(found.invoice.number).padStart(5, "0")})${reason ? `: ${reason}` : ""}`,
+          },
+        });
+        await tx.partRequest.update({
+          where: { id: partRequest.id },
+          data: {
+            issuedQty: 0,
+            status: "REJECTED",
+            decisionNote: `Returned to stock by admin: ${reason || "Removed from invoice"}`,
+          },
+        });
+      }
+    }
+
+    await tx.invoiceItem.delete({ where: { id: itemId } });
+    return found;
+  }, { isolationLevel: "Serializable" });
+
+  revalidatePath(`/finance/invoices/${item.invoiceId}`);
+  revalidatePath("/finance");
+  revalidatePath("/inventory");
+  revalidatePath(`/jobs/${item.invoice.jobId}`);
 }
 
 export async function issueInvoice(invoiceId: string) {

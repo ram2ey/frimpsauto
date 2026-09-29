@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Role } from "@/generated/prisma/client";
-import { addLabor, issueInvoice, recordPayment, removeLabor } from "@/app/billing-actions";
+import { addLabor, issueInvoice, recordPayment } from "@/app/billing-actions";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
+import { InvoiceLineItems } from "@/components/invoice-line-items";
 import { PrintButton } from "@/components/print-button";
 import { SubmitButton } from "@/components/submit-button";
 
 export default async function InvoiceDetail({ params }: { params: Promise<{ id: string }> }) {
-  await requireRole([Role.FINANCE]);
+  const user = await requireRole([Role.FINANCE]);
+  const isAdmin = user.role === Role.ADMIN;
   const { id } = await params;
   const [invoice, business] = await Promise.all([
     db.invoice.findUnique({
@@ -118,43 +120,11 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
             {invoice.job.vehicle.year} {invoice.job.vehicle.model?.name || invoice.job.vehicle.customModel}
           </small>
         </div>
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th scope="col">Type</th>
-                <th scope="col">Description</th>
-                <th scope="col">Qty</th>
-                <th scope="col">Unit</th>
-                <th scope="col">Total</th>
-                <th scope="col" className="no-print"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoice.items.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <span className="pill">{item.type.toLowerCase()}</span>
-                  </td>
-                  <td>{item.description}</td>
-                  <td>{item.quantity}</td>
-                  <td>{money(item.unitCents)}</td>
-                  <td>{money(item.quantity * item.unitCents)}</td>
-                  <td className="no-print">
-                    {invoice.status === "DRAFT" && item.type === "LABOR" && (
-                      <form action={removeLabor.bind(null, item.id)}>
-                        <button className="btn btn-danger btn-small">Remove</button>
-                      </form>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!invoice.items.length && (
-            <div className="empty">Add labor or issue a requested part to create invoice lines.</div>
-          )}
-        </div>
+        <InvoiceLineItems
+          items={invoice.items}
+          status={invoice.status}
+          isAdmin={isAdmin}
+        />
       </section>
 
       {invoice.status === "DRAFT" && (
