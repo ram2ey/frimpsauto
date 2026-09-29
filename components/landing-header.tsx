@@ -44,22 +44,12 @@ export function LandingHeader({ user, phone }: LandingHeaderProps) {
               </li>
               <li>
                 <a href="#workshop" className="landing-nav-link">
-                  Facility
-                </a>
-              </li>
-              <li>
-                <a href="#reviews" className="landing-nav-link">
-                  Testimonials
+                  Why us
                 </a>
               </li>
               <li>
                 <a href="#location" className="landing-nav-link">
-                  Hours & Location
-                </a>
-              </li>
-              <li>
-                <a href="#contact" className="landing-nav-link">
-                  Contact
+                  Contact &amp; hours
                 </a>
               </li>
             </ul>

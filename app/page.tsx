@@ -4,7 +4,6 @@ import { LandingHeader } from "@/components/landing-header";
 import { LandingHero } from "@/components/landing-hero";
 import { LandingServices } from "@/components/landing-services";
 import { LandingGallery } from "@/components/landing-gallery";
-import { LandingReviews } from "@/components/landing-reviews";
 import { LandingLocation } from "@/components/landing-location";
 import { LandingFooter } from "@/components/landing-footer";
 
@@ -21,7 +20,6 @@ export default async function Home() {
         <LandingHero phone={profile?.phone} />
         <LandingServices />
         <LandingGallery />
-        <LandingReviews />
         <LandingLocation
           address={profile?.address}
           phone={profile?.phone}
