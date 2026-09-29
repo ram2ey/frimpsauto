@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { UserCheck, Car, Phone, Mail, History, X, Search } from "lucide-react";
+import { useState, useRef } from "react";
+import { UserCheck, Car, Phone, Mail, History, X, Search, Camera } from "lucide-react";
 import { createJob } from "@/app/job-actions";
 import { SubmitButton } from "@/components/submit-button";
+import { VehicleAvatar } from "@/components/vehicle-avatar";
 
 type CustomerOption = {
   id: string;
@@ -13,6 +14,7 @@ type CustomerOption = {
   _count?: { jobs: number };
   vehicles: {
     id: string;
+    photoKey?: string | null;
     year: number;
     model: { name: string } | null;
     customModel: string | null;
@@ -48,6 +50,25 @@ export function JobIntake({
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
+
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const clearPhoto = () => {
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const currentYear = new Date().getFullYear();
   const commonYears = [
@@ -251,7 +272,10 @@ export function JobIntake({
                 id="existingVehicleId"
                 name="existingVehicleId"
                 value={vehicleId}
-                onChange={(e) => setVehicleId(e.target.value)}
+                onChange={(e) => {
+                  clearPhoto();
+                  setVehicleId(e.target.value);
+                }}
               >
                 <option value="">+ Add another vehicle for this customer</option>
                 {vehicles.map((v) => (
@@ -265,21 +289,80 @@ export function JobIntake({
 
           {/* Selected Vehicle Preview Banner */}
           {selectedVehicle && (
-            <div className="field-wide intake-verified-vehicle">
-              <div>
-                <strong style={{ fontSize: "1rem" }}>
-                  {selectedVehicle.year} {selectedVehicle.model?.name || selectedVehicle.customModel}
-                </strong>
-                <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: "0.8rem", color: "var(--muted)" }}>
-                  <span>VIN: <strong className="number">{selectedVehicle.vin || "—"}</strong></span>
-                  <span>Color: {selectedVehicle.color || "—"}</span>
+            <div className="field-wide" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div className="intake-verified-vehicle" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <VehicleAvatar vehicle={selectedVehicle} previewUrl={photoPreview} size={56} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong style={{ fontSize: "1rem" }}>
+                    {selectedVehicle.year} {selectedVehicle.model?.name || selectedVehicle.customModel}
+                  </strong>
+                  <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: "0.8rem", color: "var(--muted)", flexWrap: "wrap" }}>
+                    <span>VIN: <strong className="number">{selectedVehicle.vin || "—"}</strong></span>
+                    <span>Color: {selectedVehicle.color || "—"}</span>
+                  </div>
                 </div>
+                {selectedVehicle.plate && (
+                  <span className="pill" style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, letterSpacing: "0.04em", fontSize: "0.85rem" }}>
+                    {selectedVehicle.plate}
+                  </span>
+                )}
               </div>
-              {selectedVehicle.plate && (
-                <span className="pill" style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, letterSpacing: "0.04em", fontSize: "0.85rem" }}>
-                  {selectedVehicle.plate}
+
+              {/* Optional photo attach/update for existing vehicle */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "2px 0" }}>
+                <label
+                  htmlFor="vehiclePhoto"
+                  className="btn btn-secondary btn-small"
+                  style={{
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    minHeight: "32px",
+                    padding: "4px 12px",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  <Camera size={13} aria-hidden="true" />
+                  <span>{photoPreview ? "Change photo" : selectedVehicle.photoKey ? "Update vehicle photo" : "+ Add vehicle photo"}</span>
+                </label>
+                {photoPreview && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-small"
+                    onClick={clearPhoto}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      minHeight: "32px",
+                      padding: "4px 10px",
+                      fontSize: "0.75rem",
+                      color: "#c53030",
+                    }}
+                  >
+                    <X size={12} aria-hidden="true" />
+                    <span>Cancel photo</span>
+                  </button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  id="vehiclePhoto"
+                  name="vehiclePhoto"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  capture="environment"
+                  onChange={handlePhotoChange}
+                  style={{ display: "none" }}
+                />
+                <span className="muted" style={{ fontSize: "0.74rem" }}>
+                  {photoPreview
+                    ? "New photo ready — will save with this job intake."
+                    : selectedVehicle.photoKey
+                    ? "Vehicle has a profile photo on file."
+                    : "No photo registered for this Mercedes."}
                 </span>
-              )}
+              </div>
             </div>
           )}
 
@@ -364,6 +447,83 @@ export function JobIntake({
                   maxLength={40}
                   placeholder="e.g. Obsidian Black, Polar White"
                 />
+              </div>
+
+              {/* Vehicle Photo Upload (New Vehicle) */}
+              <div className="field field-wide" style={{ marginTop: 4 }}>
+                <label style={{ display: "block", marginBottom: 6 }}>
+                  Vehicle photo <span className="muted" style={{ fontWeight: 400 }}>(optional circular avatar)</span>
+                </label>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 16,
+                    padding: "14px 16px",
+                    background: "#f8fafc",
+                    border: "1px dashed #c0d3e2",
+                    borderRadius: 0,
+                  }}
+                >
+                  <VehicleAvatar
+                    previewUrl={photoPreview}
+                    vehicle={{
+                      year: Number(yearValue) || undefined,
+                      customModel: "Client Mercedes",
+                    }}
+                    size={64}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <label
+                        htmlFor="vehiclePhoto"
+                        className="btn btn-secondary btn-small"
+                        style={{
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          minHeight: "34px",
+                          fontSize: "0.78rem",
+                        }}
+                      >
+                        <Camera size={14} aria-hidden="true" />
+                        <span>{photoPreview ? "Change vehicle photo" : "Take photo or upload"}</span>
+                      </label>
+                      {photoPreview && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-small"
+                          onClick={clearPhoto}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            minHeight: "34px",
+                            fontSize: "0.78rem",
+                            color: "#c53030",
+                          }}
+                        >
+                          <X size={13} aria-hidden="true" />
+                          <span>Remove photo</span>
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      id="vehiclePhoto"
+                      name="vehiclePhoto"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      capture="environment"
+                      onChange={handlePhotoChange}
+                      style={{ display: "none" }}
+                    />
+                    <small className="muted" style={{ display: "block", marginTop: 6, fontSize: "0.72rem" }}>
+                      Upload or capture client vehicle. Renders as a circular profile avatar across Job Details, Customer Record, and Work orders.
+                    </small>
+                  </div>
+                </div>
               </div>
             </>
           )}

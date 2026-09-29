@@ -8,6 +8,7 @@ import { JobTabs } from "@/components/job-tabs";
 import { JobCompleteModal } from "@/components/job-complete-modal";
 import { PrintButton } from "@/components/print-button";
 import { SubmitButton } from "@/components/submit-button";
+import { VehicleAvatar } from "@/components/vehicle-avatar";
 import { canViewJob } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
@@ -98,9 +99,14 @@ export default async function JobDetail({
 
       {/* Persistent Bay Quick Bar */}
       <div className="job-quick-bar card mb" aria-label="Vehicle and customer summary">
-        <div className="job-quick-item">
-          <small>Vehicle</small>
-          <strong>Mercedes-Benz · {job.vehicle.year} {job.vehicle.model?.name || job.vehicle.customModel}</strong>
+        <div className="job-quick-item" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <VehicleAvatar vehicle={job.vehicle} size={42} />
+          <div style={{ minWidth: 0 }}>
+            <small>Vehicle</small>
+            <strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {job.vehicle.year} {job.vehicle.model?.name || job.vehicle.customModel}
+            </strong>
+          </div>
         </div>
         <div className="job-quick-item">
           <small>Plate / VIN</small>
@@ -130,7 +136,10 @@ export default async function JobDetail({
         overview={
           <div className="grid two mb">
             <section className="card">
-              <div className="section-title"><h2>Customer & vehicle</h2></div>
+              <div className="section-title">
+                <h2>Customer & vehicle</h2>
+                <VehicleAvatar vehicle={job.vehicle} size={42} />
+              </div>
               <dl className="detail-list">
                 <dt>Customer</dt><dd>{job.customer.name}</dd>
                 <dt>Phone</dt><dd><a href={`tel:${job.customer.phone}`} className="text-link">{job.customer.phone}</a></dd>

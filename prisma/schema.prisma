@@ -93,6 +93,7 @@ model Vehicle {
   vin        String?
   plate      String?
   color      String?
+  photoKey   String?
   createdAt  DateTime      @default(now())
   customer   Customer      @relation(fields: [customerId], references: [id])
   model      VehicleModel? @relation(fields: [modelId], references: [id])

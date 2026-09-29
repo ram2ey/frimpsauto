@@ -4,6 +4,7 @@ import { Role } from "@/generated/prisma/client";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
+import { VehicleAvatar } from "@/components/vehicle-avatar";
 
 const statuses = [
   { value: "OPEN", label: "Open", color: "#78b1d8" },
@@ -109,11 +110,16 @@ export default async function Dashboard() {
                       </Link>
                     </td>
                     <td>
-                      <span className="table-primary">{job.customer.name}</span>
-                      <small>
-                        {job.vehicle.year} {job.vehicle.model?.name || job.vehicle.customModel}
-                        {job.vehicle.plate ? ` · ${job.vehicle.plate}` : ""}
-                      </small>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <VehicleAvatar vehicle={job.vehicle} size={32} />
+                        <div>
+                          <span className="table-primary">{job.customer.name}</span>
+                          <small>
+                            {job.vehicle.year} {job.vehicle.model?.name || job.vehicle.customModel}
+                            {job.vehicle.plate ? ` · ${job.vehicle.plate}` : ""}
+                          </small>
+                        </div>
+                      </div>
                     </td>
                     <td>{job.technician?.name || <span className="muted">Unassigned</span>}</td>
                     <td>

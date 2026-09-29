@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { date } from "@/lib/format";
 import { CustomerProfileCard } from "@/components/customer-profile-card";
 import { VehicleCard } from "@/components/vehicle-card";
+import { VehicleAvatar } from "@/components/vehicle-avatar";
 
 export default async function CustomerDetail({
   params,
@@ -124,10 +125,13 @@ export default async function CustomerDetail({
                       </Link>
                     </td>
                     <td>
-                      <small>
-                        {job.vehicle.year} {job.vehicle.model?.name || job.vehicle.customModel}
-                        {job.vehicle.plate ? ` (${job.vehicle.plate})` : ""}
-                      </small>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <VehicleAvatar vehicle={job.vehicle} size={26} />
+                        <small>
+                          {job.vehicle.year} {job.vehicle.model?.name || job.vehicle.customModel}
+                          {job.vehicle.plate ? ` (${job.vehicle.plate})` : ""}
+                        </small>
+                      </div>
                     </td>
                     <td className="date-cell">{date(job.createdAt)}</td>
                     <td>

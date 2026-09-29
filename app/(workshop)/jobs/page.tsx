@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus, X } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
 import { Pagination } from "@/components/pagination";
+import { VehicleAvatar } from "@/components/vehicle-avatar";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date } from "@/lib/format";
@@ -117,9 +118,14 @@ export default async function Jobs({
                     <small>{job.customer.phone}</small>
                   </td>
                   <td>
-                    {job.vehicle.year} {job.vehicle.model?.name || job.vehicle.customModel}
-                    <br />
-                    <small>{job.vehicle.plate || job.vehicle.vin || "—"}</small>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <VehicleAvatar vehicle={job.vehicle} size={36} />
+                      <div>
+                        <span>{job.vehicle.year} {job.vehicle.model?.name || job.vehicle.customModel}</span>
+                        <br />
+                        <small className="muted">{job.vehicle.plate || job.vehicle.vin || "—"}</small>
+                      </div>
+                    </div>
                   </td>
                   <td>{job.technician?.name || "Unassigned"}</td>
                   <td>

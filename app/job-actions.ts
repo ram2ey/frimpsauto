@@ -1,11 +1,13 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { JobStatus, Role } from "@/generated/prisma/client";
 import { assertRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { positiveInt, text } from "@/lib/format";
+import { putPrivateObject } from "@/lib/storage";
 
 const editors = [Role.SUPERVISOR];
 
@@ -27,6 +29,23 @@ export async function createJob(form: FormData) {
   const templateId = String(form.get("templateId") || "");
   const template = templateId ? await db.checklistTemplate.findUnique({ where: { id: templateId }, include: { items: { orderBy: { sortOrder: "asc" } } } }) : null;
   if (templateId && (!template || !template.active)) throw new Error("Choose an active checklist template.");
+
+  // Process optional vehicle photo
+  const photoFile = form.get("vehiclePhoto") as File | null;
+  let photoData: { key: string; buffer: Uint8Array } | null = null;
+  if (photoFile && photoFile.size > 0 && photoFile.size <= 10 * 1024 * 1024) {
+    const mime = photoFile.type.toLowerCase();
+    let ext: string | null = null;
+    if (mime === "image/png") ext = "png";
+    else if (mime === "image/webp") ext = "webp";
+    else if (mime === "image/jpeg" || mime === "image/jpg") ext = "jpg";
+    if (ext) {
+      const buffer = new Uint8Array(await photoFile.arrayBuffer());
+      const tempId = randomUUID();
+      photoData = { key: `vehicles/${tempId}/${randomUUID()}.${ext}`, buffer };
+    }
+  }
+
   const job = await db.$transaction(async tx => {
     let customerId: string;
     let vehicleId: string;
@@ -35,6 +54,9 @@ export async function createJob(form: FormData) {
       if (!vehicle || (existingCustomerId && vehicle.customerId !== existingCustomerId)) throw new Error("Vehicle not found for this customer.");
       customerId = vehicle.customerId;
       vehicleId = vehicle.id;
+      if (photoData) {
+        await tx.vehicle.update({ where: { id: existingVehicleId }, data: { photoKey: photoData.key } });
+      }
     } else {
       if (existingCustomerId) {
         const customer = await tx.customer.findUnique({ where: { id: existingCustomerId } });
@@ -51,6 +73,7 @@ export async function createJob(form: FormData) {
         vin: String(form.get("vin") || "").trim().toUpperCase() || null,
         plate: String(form.get("plate") || "").trim().toUpperCase() || null,
         color: String(form.get("color") || "").trim() || null,
+        photoKey: photoData?.key || null,
       } });
       vehicleId = vehicle.id;
     }
@@ -60,6 +83,11 @@ export async function createJob(form: FormData) {
       checklist: template ? { create: template.items.map(item => ({ label: item.label, sortOrder: item.sortOrder })) } : undefined,
     } });
   });
+
+  if (photoData) {
+    await putPrivateObject(photoData.key, photoData.buffer);
+  }
+
   revalidatePath("/jobs");
   redirect(`/jobs/${job.id}`);
 }
@@ -157,3 +185,33 @@ export async function closeJob(jobId: string) {
   revalidatePath("/jobs");
   revalidatePath("/finance");
 }
+
+export async function uploadVehiclePhoto(vehicleId: string, form: FormData) {
+  await assertRole(editors);
+  const vehicle = await db.vehicle.findUnique({ where: { id: vehicleId } });
+  if (!vehicle) throw new Error("Vehicle not found.");
+
+  const file = form.get("vehiclePhoto") as File | null;
+  if (!file || file.size === 0) throw new Error("No photo provided.");
+  if (file.size > 10 * 1024 * 1024) throw new Error("Vehicle photo exceeds the 10 MB limit.");
+
+  const mime = file.type.toLowerCase();
+  let ext: string | null = null;
+  if (mime === "image/png") ext = "png";
+  else if (mime === "image/webp") ext = "webp";
+  else if (mime === "image/jpeg" || mime === "image/jpg") ext = "jpg";
+  if (!ext) throw new Error("Only JPEG, PNG, or WebP image files are allowed.");
+
+  const key = `vehicles/${vehicleId}/${randomUUID()}.${ext}`;
+  const buffer = new Uint8Array(await file.arrayBuffer());
+  await putPrivateObject(key, buffer);
+
+  await db.vehicle.update({
+    where: { id: vehicleId },
+    data: { photoKey: key },
+  });
+
+  revalidatePath(`/customers/${vehicle.customerId}`);
+  revalidatePath("/jobs");
+}
+
