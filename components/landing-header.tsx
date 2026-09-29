@@ -9,7 +9,7 @@ interface LandingHeaderProps {
 }
 
 export function LandingHeader({ user, phone }: LandingHeaderProps) {
-  const cleanPhone = phone?.replace(/[^0-9]/g, "") || "233200000000";
+  const cleanPhone = phone?.replace(/[^0-9]/g, "") || "233543026391";
   const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
     "Hello Frimps MB Autoboss, I would like to inquire about a service for my Mercedes-Benz."
   )}`;

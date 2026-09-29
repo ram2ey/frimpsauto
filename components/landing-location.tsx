@@ -7,8 +7,8 @@ interface LandingLocationProps {
 }
 
 export function LandingLocation({ address, phone, email }: LandingLocationProps) {
-  const displayAddress = address || "Accra, Greater Accra Region, Ghana";
-  const displayPhone = phone || "+233 20 000 0000";
+  const displayAddress = address || "Anyah NIC, Accra";
+  const displayPhone = phone || "+233543026391";
   const displayEmail = email || "service@frimpsmbautoboss.com";
   const cleanPhone = displayPhone.replace(/[^0-9]/g, "");
   const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
