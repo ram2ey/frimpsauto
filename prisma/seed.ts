@@ -20,7 +20,7 @@ async function main() {
   if (!existingAdmin) {
     if (!username || !password) throw new Error("Set BOOTSTRAP_ADMIN_USERNAME and BOOTSTRAP_ADMIN_PASSWORD to create the first admin.");
     if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(username)) throw new Error("BOOTSTRAP_ADMIN_USERNAME must be 3 to 32 characters using letters, numbers, dots, dashes or underscores.");
-    if (password.length < 12 || Buffer.byteLength(password, "utf8") > 72) throw new Error("BOOTSTRAP_ADMIN_PASSWORD must be 12 to 72 bytes.");
+    if (password.length < 6 || Buffer.byteLength(password, "utf8") > 72) throw new Error("BOOTSTRAP_ADMIN_PASSWORD must be at least 6 characters and at most 72 bytes.");
     if (await db.user.findUnique({ where: { username } })) throw new Error("BOOTSTRAP_ADMIN_USERNAME is already in use.");
     await db.user.create({ data: { name: "Administrator", username, role: Role.ADMIN, passwordHash: await hash(password, 12), mustChangePassword: true } });
   }

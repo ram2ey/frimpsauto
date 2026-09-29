@@ -15,8 +15,8 @@ export default async function FirstPasswordChange({ searchParams }: { searchPara
     {error && <div className="notice">{error}</div>}
     <form action={changePassword} className="stack">
       <div><label htmlFor="currentPassword">Temporary password</label><input id="currentPassword" name="currentPassword" type="password" required autoComplete="current-password"/></div>
-      <div><label htmlFor="newPassword">New password</label><input id="newPassword" name="newPassword" type="password" minLength={12} maxLength={72} required autoComplete="new-password"/></div>
-      <div><label htmlFor="confirmPassword">Confirm new password</label><input id="confirmPassword" name="confirmPassword" type="password" minLength={12} maxLength={72} required autoComplete="new-password"/></div>
+      <div><label htmlFor="newPassword">New password</label><input id="newPassword" name="newPassword" type="password" minLength={6} maxLength={72} required autoComplete="new-password"/></div>
+      <div><label htmlFor="confirmPassword">Confirm new password</label><input id="confirmPassword" name="confirmPassword" type="password" minLength={6} maxLength={72} required autoComplete="new-password"/></div>
       <SubmitButton pendingLabel="Saving password...">Save password</SubmitButton>
     </form>
     <form action={logout} className="mt"><button className="btn btn-secondary">Sign out</button></form>

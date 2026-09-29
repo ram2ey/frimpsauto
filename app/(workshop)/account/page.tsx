@@ -10,8 +10,8 @@ export default async function Account({ searchParams }: { searchParams: Promise<
     {(changed === "1" || updated === "1") && <div className="notice success">{changed === "1" ? "Password changed." : "Username updated."}</div>}
     <div className="grid two"><section className="card"><h2>Change password</h2><form action={changePassword} className="stack">
       <div><label htmlFor="currentPassword">Current password</label><input id="currentPassword" name="currentPassword" type="password" required autoComplete="current-password"/></div>
-      <div><label htmlFor="newPassword">New password</label><input id="newPassword" name="newPassword" type="password" minLength={12} maxLength={72} required autoComplete="new-password"/></div>
-      <div><label htmlFor="confirmPassword">Confirm new password</label><input id="confirmPassword" name="confirmPassword" type="password" minLength={12} maxLength={72} required autoComplete="new-password"/></div>
+      <div><label htmlFor="newPassword">New password</label><input id="newPassword" name="newPassword" type="password" minLength={6} maxLength={72} required autoComplete="new-password"/></div>
+      <div><label htmlFor="confirmPassword">Confirm new password</label><input id="confirmPassword" name="confirmPassword" type="password" minLength={6} maxLength={72} required autoComplete="new-password"/></div>
       <SubmitButton pendingLabel="Saving password..." style={{ alignSelf: "start" }}>Save password</SubmitButton>
     </form></section>
     <section className="card"><h2>Username</h2><form action={changeUsername} className="stack">

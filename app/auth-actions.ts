@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { text } from "@/lib/format";
 
 function validPassword(password: string) {
-  return password.length >= 12 && Buffer.byteLength(password, "utf8") <= 72;
+  return password.length >= 6 && Buffer.byteLength(password, "utf8") <= 72;
 }
 
 function usernameFromForm(value: FormDataEntryValue | null) {
@@ -48,7 +48,7 @@ export async function createStaff(form: FormData) {
   const username = usernameFromForm(form.get("username"));
   const password = String(form.get("password") ?? "");
   const role = String(form.get("role"));
-  if (!validPassword(password)) redirect("/team?error=Temporary%20password%20must%20be%2012%20to%2072%20bytes");
+  if (!validPassword(password)) redirect("/team?error=Temporary%20password%20must%20be%20at%20least%206%20characters%20and%20at%20most%2072%20bytes");
   if (!Object.values(Role).includes(role as Role)) throw new Error("Invalid staff role.");
   if (await db.user.findUnique({ where: { username } })) redirect("/team?error=Username%20is%20already%20in%20use");
   await db.user.create({ data: { name, username, passwordHash: await hash(password, 12), role: role as Role, mustChangePassword: true } });
@@ -60,7 +60,7 @@ export async function setStaffPassword(userId: string, form: FormData) {
   const actor = await assertRole([Role.ADMIN]);
   if (actor.id === userId) throw new Error("Change your own password from Account.");
   const password = String(form.get("password") ?? "");
-  if (!validPassword(password)) redirect("/team?error=Temporary%20password%20must%20be%2012%20to%2072%20bytes");
+  if (!validPassword(password)) redirect("/team?error=Temporary%20password%20must%20be%20at%20least%206%20characters%20and%20at%20most%2072%20bytes");
   const passwordHash = await hash(password, 12);
   await db.$transaction(async tx => {
     await tx.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: true } });
@@ -80,7 +80,7 @@ export async function changePassword(form: FormData) {
   if (!user.passwordHash || !(await compare(currentPassword, user.passwordHash))) {
     redirect(`${destination}?error=Current%20password%20is%20incorrect`);
   }
-  if (!validPassword(newPassword)) redirect(`${destination}?error=New%20password%20must%20be%2012%20to%2072%20bytes`);
+  if (!validPassword(newPassword)) redirect(`${destination}?error=New%20password%20must%20be%20at%20least%206%20characters%20and%20at%20most%2072%20bytes`);
   if (newPassword !== confirmation) redirect(`${destination}?error=Passwords%20do%20not%20match`);
   if (await compare(newPassword, user.passwordHash)) redirect(`${destination}?error=Choose%20a%20different%20password`);
   const passwordHash = await hash(newPassword, 12);

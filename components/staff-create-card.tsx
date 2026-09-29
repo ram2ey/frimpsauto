@@ -85,13 +85,13 @@ export function StaffCreateCard() {
               id="password"
               name="password"
               type={showPassword ? "text" : "password"}
-              minLength={12}
+              minLength={6}
               maxLength={72}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
               required
-              placeholder="Minimum 12 characters"
+              placeholder="Minimum 6 characters"
             />
             <button
               type="button"

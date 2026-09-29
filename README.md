@@ -22,7 +22,7 @@ Permissions are checked in server actions and file routes as well as page naviga
 
 ## Setup
 
-1. Copy `.env.example` to `.env`. Set `BOOTSTRAP_ADMIN_USERNAME` and strong values for `POSTGRES_PASSWORD` and `BOOTSTRAP_ADMIN_PASSWORD`. Use a URL-safe value for `POSTGRES_PASSWORD`, since Compose inserts it into `DATABASE_URL`. Set `APP_URL` to the public HTTPS URL when deployed.
+1. Copy `.env.example` to `.env`. Set `BOOTSTRAP_ADMIN_USERNAME` and strong values for `POSTGRES_PASSWORD` and `BOOTSTRAP_ADMIN_PASSWORD`. The admin password must have at least 6 characters. Use a URL-safe value for `POSTGRES_PASSWORD`, since Compose inserts it into `DATABASE_URL`. Set `APP_URL` to the public HTTPS URL when deployed.
 2. Run `docker compose up --build -d`. The app waits for PostgreSQL, applies the versioned migration, creates the initial admin and checklist, then starts on internal port 3000. Compose creates persistent `postgres_data` and `diagnostic_files` volumes on the server.
 3. Sign in using `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD`, then change the password when prompted. Remove those two values from the app environment after the first successful start. The seed does not overwrite an existing admin account.
 
@@ -38,7 +38,7 @@ Existing staff can sign in with their previous email address entered as the user
 
 ## Start with empty app data
 
-This permanently removes customers, vehicles, jobs, invoices, inventory, staff accounts, sessions, business settings, and uploaded vehicle/diagnostic files. Take a backup of the database and `diagnostic_files` volume first if any of that data may be needed later. Set `BOOTSTRAP_ADMIN_USERNAME` and a strong `BOOTSTRAP_ADMIN_PASSWORD` before restarting; the seed now requires both to create the first admin.
+This permanently removes customers, vehicles, jobs, invoices, inventory, staff accounts, sessions, business settings, and uploaded vehicle/diagnostic files. Take a backup of the database and `diagnostic_files` volume first if any of that data may be needed later. Set `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD` (at least 6 characters) before restarting; the seed requires both to create the first admin.
 
 For a local Docker Compose installation, run these commands from this repository with the same Compose project and `.env` used to start the app:
 

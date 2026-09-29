@@ -115,13 +115,13 @@ export function StaffRowActions({ member }: { member: StaffMemberProps }) {
                   id={`password-${member.id}`}
                   name="password"
                   type={showPassword ? "text" : "password"}
-                  minLength={12}
+                  minLength={6}
                   maxLength={72}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="new-password"
-                  placeholder="At least 12 characters"
+                  placeholder="At least 6 characters"
                 />
                 <button
                   type="button"
@@ -133,7 +133,7 @@ export function StaffRowActions({ member }: { member: StaffMemberProps }) {
                 </button>
               </div>
               <small className="muted" style={{ display: "block", marginTop: 4 }}>
-                Must be between 12 and 72 characters. The user will be required to change it upon next login.
+                At least 6 characters, up to 72 bytes. The user will be required to change it upon next login.
               </small>
             </div>
 
