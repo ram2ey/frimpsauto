@@ -113,6 +113,7 @@ export function StaffCreateCard() {
             <option value="TECHNICIAN">Technician — Job inspections, requisitions & labor</option>
             <option value="SUPERVISOR">Supervisor — Floor assignment, approvals & sign-off</option>
             <option value="FINANCE">Finance — Invoicing, payments & financial reports</option>
+            <option value="SHOP_STAFF">Shop Staff — Retail Parts Shop counter sales & stock receiving</option>
             <option value="ADMIN">Admin — Full system configuration & user access</option>
           </select>
         </div>

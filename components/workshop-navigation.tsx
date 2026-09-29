@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ClipboardList, UsersRound, Package, ReceiptText, UserCog, ListChecks, Settings2, CircleUserRound } from "lucide-react";
+import { LayoutDashboard, ClipboardList, UsersRound, Package, ReceiptText, Store, UserCog, ListChecks, Settings2, CircleUserRound } from "lucide-react";
 
 const sections = {
   dashboard: { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -10,6 +10,7 @@ const sections = {
   customers: { href: "/customers", label: "Customers", icon: UsersRound },
   inventory: { href: "/inventory", label: "Parts inventory", icon: Package },
   finance: { href: "/finance", label: "Finance", icon: ReceiptText },
+  shop: { href: "/shop", label: "Parts Shop", icon: Store },
   team: { href: "/team", label: "Staff & access", icon: UserCog },
   checklists: { href: "/checklists", label: "Checklists", icon: ListChecks },
   settings: { href: "/settings", label: "Business details", icon: Settings2 },

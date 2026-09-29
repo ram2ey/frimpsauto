@@ -411,6 +411,7 @@ button:disabled[aria-busy="true"] {
 .pill.role-supervisor { background: #e0effb; color: #175b8e; border-color: #badcf5; }
 .pill.role-technician { background: #e0f2f0; color: #1e5c54; border-color: #bae4de; }
 .pill.role-finance { background: #fdf3e2; color: #7f5511; border-color: #f7dfb9; }
+.pill.role-shop_staff { background: #f3e8ff; color: #6b21a8; border-color: #e9d5ff; }
 .modal-dialog { border: none; background: transparent; padding: 16px; max-width: 480px; width: calc(100% - 32px); margin: auto; overflow: visible; }
 .modal-dialog::backdrop { background: rgba(18, 50, 75, .45); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
 .modal-dialog[open] { animation: modal-pop .18s cubic-bezier(.16, 1, .3, 1); }

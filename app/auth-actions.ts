@@ -28,7 +28,13 @@ export async function login(form: FormData) {
     redirect("/login?error=Invalid%20username%20or%20password");
   }
   await createSession(user.id);
-  redirect(user.mustChangePassword ? "/change-password" : "/dashboard");
+  redirect(
+    user.mustChangePassword
+      ? "/change-password"
+      : user.role === Role.SHOP_STAFF
+      ? "/shop"
+      : "/dashboard"
+  );
 }
 
 export async function logout() {
@@ -83,7 +89,13 @@ export async function changePassword(form: FormData) {
     await tx.session.deleteMany({ where: { userId: user.id } });
   });
   await createSession(user.id);
-  redirect(user.mustChangePassword ? "/dashboard" : "/account?changed=1");
+  redirect(
+    user.mustChangePassword
+      ? user.role === Role.SHOP_STAFF
+        ? "/shop"
+        : "/dashboard"
+      : "/account?changed=1"
+  );
 }
 
 export async function changeUsername(form: FormData) {

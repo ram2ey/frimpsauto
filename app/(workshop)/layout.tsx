@@ -6,11 +6,15 @@ import { Role } from "@/generated/prisma/client";
 import { BrandLogo } from "@/components/brand-logo";
 import { WorkshopNavigation, WorkshopPageLabel, type WorkshopSection } from "@/components/workshop-navigation";
 
+import { redirect } from "next/navigation";
+
 export default async function WorkshopLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
+  if (user.role === Role.SHOP_STAFF) redirect("/shop");
+
   const links: WorkshopSection[] = ["dashboard", "jobs", "customers", "inventory", "finance"];
   const visible = user.role === Role.TECHNICIAN ? links.slice(0, 2) : user.role === Role.SUPERVISOR ? links.slice(0, 4) : links;
-  const administration: WorkshopSection[] = user.role === Role.ADMIN ? ["team", "checklists", "settings"] : [];
+  const administration: WorkshopSection[] = user.role === Role.ADMIN ? ["shop", "team", "checklists", "settings"] : [];
   const initials = user.name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("");
 
   return <div className="shell">

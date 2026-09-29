@@ -12,6 +12,12 @@ enum Role {
   FINANCE
   SUPERVISOR
   TECHNICIAN
+  SHOP_STAFF
+}
+
+enum Location {
+  WORKSHOP
+  RETAIL_SHOP
 }
 
 enum JobStatus {
@@ -55,6 +61,8 @@ model User {
   createdJobs   Job[]    @relation("JobCreator")
   uploads       Diagnostic[]
   stockMoves    StockMovement[]
+  transfers     StockTransfer[]
+  directSales   DirectSale[]
 }
 
 model Session {
@@ -170,27 +178,75 @@ model Diagnostic {
 }
 
 model Part {
-  id           String          @id @default(cuid())
-  sku          String          @unique
-  name         String
-  priceCents   Int
-  stockQty     Int             @default(0)
-  reorderLevel Int             @default(0)
-  active       Boolean         @default(true)
-  createdAt    DateTime        @default(now())
-  requests     PartRequest[]
-  stockMoves   StockMovement[]
+  id               String           @id @default(cuid())
+  sku              String           @unique
+  name             String
+  priceCents       Int
+  stockQty         Int              @default(0) // Workshop bay stock
+  reorderLevel     Int              @default(0) // Workshop reorder alert
+  shopStockQty     Int              @default(0) // Retail shop shelf stock
+  shopReorderLevel Int              @default(0) // Retail shop reorder alert
+  active           Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  requests         PartRequest[]
+  stockMoves       StockMovement[]
+  transfers        StockTransfer[]
+  directSaleItems  DirectSaleItem[]
 }
 
 model StockMovement {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   partId     String
   userId     String
+  location   Location  @default(WORKSHOP)
   delta      Int
   reason     String
-  createdAt  DateTime @default(now())
-  part       Part     @relation(fields: [partId], references: [id])
-  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime  @default(now())
+  part       Part      @relation(fields: [partId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
+}
+
+model StockTransfer {
+  id           String    @id @default(cuid())
+  number       Int       @unique @default(autoincrement())
+  partId       String
+  fromLocation Location
+  toLocation   Location
+  quantity     Int
+  userId       String
+  notes        String?
+  createdAt    DateTime  @default(now())
+  part         Part      @relation(fields: [partId], references: [id])
+  user         User      @relation(fields: [userId], references: [id])
+
+  @@index([fromLocation, toLocation])
+}
+
+model DirectSale {
+  id            String           @id @default(cuid())
+  number        Int              @unique @default(autoincrement())
+  location      Location         @default(WORKSHOP)
+  customerName  String?
+  customerPhone String?
+  totalCents    Int
+  paymentMethod String
+  sellerId      String
+  notes         String?
+  createdAt     DateTime         @default(now())
+  seller        User             @relation(fields: [sellerId], references: [id])
+  items         DirectSaleItem[]
+
+  @@index([location, createdAt])
+}
+
+model DirectSaleItem {
+  id         String     @id @default(cuid())
+  saleId     String
+  partId     String
+  quantity   Int
+  unitCents  Int
+  sale       DirectSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  part       Part       @relation(fields: [partId], references: [id])
 }
 
 model PartRequest {

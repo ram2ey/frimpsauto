@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Role } from "@/generated/prisma/client";
+import { Location, Role } from "@/generated/prisma/client";
 import { assertRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { amountFromForm, positiveInt, text } from "@/lib/format";
@@ -88,6 +88,7 @@ export async function updatePartItem(itemId: string, form: FormData) {
             data: {
               partId: partRequest.partId,
               userId: actor.id,
+              location: Location.WORKSHOP,
               delta,
               reason: `Returned from Job #${found.invoice.job.number} (INV-${String(found.invoice.number).padStart(5, "0")}): ${reason}`,
             },
@@ -110,6 +111,7 @@ export async function updatePartItem(itemId: string, form: FormData) {
             data: {
               partId: partRequest.partId,
               userId: actor.id,
+              location: Location.WORKSHOP,
               delta: -additional,
               reason: `Additional units issued to Job #${found.invoice.job.number} (INV-${String(found.invoice.number).padStart(5, "0")}): ${reason}`,
             },
@@ -162,6 +164,7 @@ export async function returnPartItem(itemId: string, form?: FormData) {
           data: {
             partId: partRequest.partId,
             userId: actor.id,
+            location: Location.WORKSHOP,
             delta: found.quantity,
             reason: `Returned to stock from Job #${found.invoice.job.number} (INV-${String(found.invoice.number).padStart(5, "0")})${reason ? `: ${reason}` : ""}`,
           },
