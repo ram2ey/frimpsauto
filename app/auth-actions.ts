@@ -121,3 +121,40 @@ export async function setStaffActive(userId: string, form: FormData) {
   if (!active) await db.session.deleteMany({ where: { userId } });
   revalidatePath("/team");
 }
+
+export async function updateStaff(userId: string, form: FormData) {
+  const actor = await assertRole([Role.ADMIN]);
+  const name = text(form.get("name"), "Name", 100);
+  let username: string;
+  try {
+    username = usernameFromForm(form.get("username"));
+  } catch {
+    redirect("/team?error=Username%20must%20be%203%20to%2032%20characters%20using%20letters,%20numbers,%20dots,%20dashes%20or%20underscores");
+  }
+
+  const role = String(form.get("role"));
+  if (!Object.values(Role).includes(role as Role)) {
+    throw new Error("Invalid staff role.");
+  }
+
+  if (actor.id === userId && role !== Role.ADMIN) {
+    redirect("/team?error=You%20cannot%20remove%20your%20own%20Admin%20role");
+  }
+
+  const existing = await db.user.findUnique({ where: { username } });
+  if (existing && existing.id !== userId) {
+    redirect("/team?error=Username%20is%20already%20in%20use");
+  }
+
+  await db.user.update({
+    where: { id: userId },
+    data: {
+      name,
+      username,
+      role: role as Role,
+    },
+  });
+
+  revalidatePath("/team");
+  redirect("/team?updated=1");
+}

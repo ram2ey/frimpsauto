@@ -5,9 +5,9 @@ import { date } from "@/lib/format";
 import { StaffRowActions } from "@/components/staff-row-actions";
 import { StaffCreateCard } from "@/components/staff-create-card";
 
-export default async function Team({ searchParams }: { searchParams: Promise<{ created?: string; reset?: string; error?: string }> }) {
+export default async function Team({ searchParams }: { searchParams: Promise<{ created?: string; reset?: string; updated?: string; error?: string }> }) {
   const actor = await requireRole([Role.ADMIN]);
-  const { created, reset, error } = await searchParams;
+  const { created, reset, updated, error } = await searchParams;
   const staff = await db.user.findMany({ orderBy: { createdAt: "desc" } });
 
   return (
@@ -21,9 +21,13 @@ export default async function Team({ searchParams }: { searchParams: Promise<{ c
       </div>
 
       {error && <div className="notice" role="alert">{error}</div>}
-      {(created === "1" || reset === "1") && (
+      {(created === "1" || reset === "1" || updated === "1") && (
         <div className="notice success" role="status">
-          {created === "1" ? "Staff account created successfully." : "Temporary password set. Other active sessions were signed out."}
+          {created === "1"
+            ? "Staff account created successfully."
+            : reset === "1"
+            ? "Temporary password set. Other active sessions were signed out."
+            : "Staff details updated successfully."}
         </div>
       )}
 
@@ -84,13 +88,7 @@ export default async function Team({ searchParams }: { searchParams: Promise<{ c
                     </td>
                     <td className="date-cell">{date(member.createdAt)}</td>
                     <td>
-                      {member.id === actor.id ? (
-                        <span className="muted" style={{ fontSize: "0.74rem" }}>
-                          Current account
-                        </span>
-                      ) : (
-                        <StaffRowActions member={member} />
-                      )}
+                      <StaffRowActions member={member} isCurrentAccount={member.id === actor.id} />
                     </td>
                   </tr>
                 ))}

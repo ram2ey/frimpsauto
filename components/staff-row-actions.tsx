@@ -1,30 +1,46 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { KeyRound, Eye, EyeOff, ShieldAlert, X, Wand2 } from "lucide-react";
-import { setStaffActive, setStaffPassword } from "@/app/auth-actions";
+import { KeyRound, Eye, EyeOff, ShieldAlert, X, Wand2, Pencil } from "lucide-react";
+import { setStaffActive, setStaffPassword, updateStaff } from "@/app/auth-actions";
 import { SubmitButton } from "@/components/submit-button";
 
 interface StaffMemberProps {
   id: string;
   name: string;
   username: string;
+  role: string;
   active: boolean;
 }
 
-export function StaffRowActions({ member }: { member: StaffMemberProps }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+export function StaffRowActions({
+  member,
+  isCurrentAccount = false,
+}: {
+  member: StaffMemberProps;
+  isCurrentAccount?: boolean;
+}) {
+  const editDialogRef = useRef<HTMLDialogElement>(null);
+  const resetDialogRef = useRef<HTMLDialogElement>(null);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const openModal = () => {
-    setPassword("");
-    setShowPassword(false);
-    dialogRef.current?.showModal();
+  const openEditModal = () => {
+    editDialogRef.current?.showModal();
   };
 
-  const closeModal = () => {
-    dialogRef.current?.close();
+  const closeEditModal = () => {
+    editDialogRef.current?.close();
+  };
+
+  const openResetModal = () => {
+    setPassword("");
+    setShowPassword(false);
+    resetDialogRef.current?.showModal();
+  };
+
+  const closeResetModal = () => {
+    resetDialogRef.current?.close();
   };
 
   const generatePassword = () => {
@@ -39,38 +55,153 @@ export function StaffRowActions({ member }: { member: StaffMemberProps }) {
 
   return (
     <>
-      <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
+      <div className="row" style={{ gap: 8, flexWrap: "nowrap", alignItems: "center" }}>
         <button
           type="button"
           className="btn btn-secondary btn-small"
-          onClick={openModal}
-          title={`Reset temporary password for ${member.name}`}
+          onClick={openEditModal}
+          title={`Edit details for ${member.name}`}
           aria-haspopup="dialog"
         >
-          <KeyRound size={13} aria-hidden="true" />
-          <span>Reset password</span>
+          <Pencil size={13} aria-hidden="true" />
+          <span>Edit</span>
         </button>
 
-        <form action={setStaffActive.bind(null, member.id)}>
-          <input type="hidden" name="active" value={member.active ? "false" : "true"} />
-          <SubmitButton
-            type="submit"
-            className={`btn btn-small ${member.active ? "btn-secondary" : "btn-teal"}`}
-            title={member.active ? `Disable access for ${member.name}` : `Enable access for ${member.name}`}
-          >
-            {member.active ? "Disable" : "Enable"}
-          </SubmitButton>
-        </form>
+        {!isCurrentAccount ? (
+          <>
+            <button
+              type="button"
+              className="btn btn-secondary btn-small"
+              onClick={openResetModal}
+              title={`Reset temporary password for ${member.name}`}
+              aria-haspopup="dialog"
+            >
+              <KeyRound size={13} aria-hidden="true" />
+              <span>Reset password</span>
+            </button>
+
+            <form action={setStaffActive.bind(null, member.id)}>
+              <input type="hidden" name="active" value={member.active ? "false" : "true"} />
+              <SubmitButton
+                type="submit"
+                className={`btn btn-small ${member.active ? "btn-secondary" : "btn-teal"}`}
+                title={member.active ? `Disable access for ${member.name}` : `Enable access for ${member.name}`}
+              >
+                {member.active ? "Disable" : "Enable"}
+              </SubmitButton>
+            </form>
+          </>
+        ) : (
+          <span className="muted" style={{ fontSize: "0.74rem" }}>
+            Current account
+          </span>
+        )}
       </div>
 
+      {/* Edit Details Dialog */}
       <dialog
-        ref={dialogRef}
+        ref={editDialogRef}
+        id={`edit-modal-${member.id}`}
+        className="modal-dialog"
+        aria-labelledby={`edit-modal-title-${member.id}`}
+        onClick={(e) => {
+          if (e.target === editDialogRef.current) {
+            closeEditModal();
+          }
+        }}
+      >
+        <div className="modal-card">
+          <div className="modal-header">
+            <div>
+              <h3 id={`edit-modal-title-${member.id}`}>Edit Staff Details</h3>
+              <p className="modal-subtitle">
+                Update name, username, or role for <strong>{member.name}</strong> (@{member.username}).
+              </p>
+            </div>
+            <button
+              type="button"
+              className="modal-close-btn"
+              onClick={closeEditModal}
+              aria-label="Close dialog"
+            >
+              <X size={15} aria-hidden="true" />
+            </button>
+          </div>
+
+          <form action={updateStaff.bind(null, member.id)} className="stack" style={{ gap: 14 }}>
+            <div>
+              <label htmlFor={`edit-name-${member.id}`}>Full name</label>
+              <input
+                id={`edit-name-${member.id}`}
+                name="name"
+                defaultValue={member.name}
+                maxLength={100}
+                required
+                autoComplete="name"
+              />
+            </div>
+
+            <div>
+              <label htmlFor={`edit-username-${member.id}`}>Username</label>
+              <input
+                id={`edit-username-${member.id}`}
+                name="username"
+                defaultValue={member.username}
+                minLength={3}
+                maxLength={32}
+                pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,31}"
+                autoComplete="off"
+                required
+              />
+              <small className="muted" style={{ display: "block", marginTop: 4 }}>
+                3 to 32 characters using letters, numbers, dots, dashes, or underscores.
+              </small>
+            </div>
+
+            <div>
+              <label htmlFor={`edit-role-${member.id}`}>Role & permissions</label>
+              {isCurrentAccount ? (
+                <>
+                  <select id={`edit-role-${member.id}`} name="role" defaultValue={member.role} disabled>
+                    <option value="ADMIN">Admin — Full system configuration & user access</option>
+                  </select>
+                  <input type="hidden" name="role" value="ADMIN" />
+                  <small className="muted" style={{ display: "block", marginTop: 4 }}>
+                    You cannot change your own role from Admin while logged in.
+                  </small>
+                </>
+              ) : (
+                <select id={`edit-role-${member.id}`} name="role" required defaultValue={member.role}>
+                  <option value="TECHNICIAN">Technician — Job inspections, requisitions & labor</option>
+                  <option value="SUPERVISOR">Supervisor — Floor assignment, approvals & sign-off</option>
+                  <option value="FINANCE">Finance — Invoicing, payments & financial reports</option>
+                  <option value="SHOP_STAFF">Shop Staff — Retail Parts Shop counter sales & stock receiving</option>
+                  <option value="ADMIN">Admin — Full system configuration & user access</option>
+                </select>
+              )}
+            </div>
+
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary btn-small" onClick={closeEditModal}>
+                Cancel
+              </button>
+              <SubmitButton type="submit" className="btn btn-primary btn-small" pendingLabel="Saving...">
+                Save changes
+              </SubmitButton>
+            </div>
+          </form>
+        </div>
+      </dialog>
+
+      {/* Reset Password Dialog */}
+      <dialog
+        ref={resetDialogRef}
         id={`reset-modal-${member.id}`}
         className="modal-dialog"
         aria-labelledby={`reset-modal-title-${member.id}`}
         onClick={(e) => {
-          if (e.target === dialogRef.current) {
-            closeModal();
+          if (e.target === resetDialogRef.current) {
+            closeResetModal();
           }
         }}
       >
@@ -85,7 +216,7 @@ export function StaffRowActions({ member }: { member: StaffMemberProps }) {
             <button
               type="button"
               className="modal-close-btn"
-              onClick={closeModal}
+              onClick={closeResetModal}
               aria-label="Close dialog"
             >
               <X size={15} aria-hidden="true" />
@@ -143,7 +274,7 @@ export function StaffRowActions({ member }: { member: StaffMemberProps }) {
             </div>
 
             <div className="modal-actions">
-              <button type="button" className="btn btn-secondary btn-small" onClick={closeModal}>
+              <button type="button" className="btn btn-secondary btn-small" onClick={closeResetModal}>
                 Cancel
               </button>
               <SubmitButton type="submit" className="btn btn-primary btn-small" pendingLabel="Saving...">
