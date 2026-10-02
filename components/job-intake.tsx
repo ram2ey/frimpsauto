@@ -26,6 +26,59 @@ type CustomerOption = {
 
 type Choice = { id: string; name: string };
 
+async function compressImage(file: File): Promise<File> {
+  if (file.size <= 800 * 1024) return file;
+  if (!file.type.startsWith("image/")) return file;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const maxDim = 1920;
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file);
+            return;
+          }
+          const compressed = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+            type: "image/jpeg",
+            lastModified: Date.now(),
+          });
+          resolve(compressed);
+        },
+        "image/jpeg",
+        0.82
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+    img.src = url;
+  });
+}
+
 export function JobIntake({
   customers,
   models,
@@ -52,17 +105,39 @@ export function JobIntake({
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPhotoError(null);
     const file = e.target.files?.[0];
     if (file) {
+      let processedFile = file;
+      if (file.type.startsWith("image/") && file.size > 800 * 1024) {
+        try {
+          processedFile = await compressImage(file);
+          if (typeof DataTransfer !== "undefined" && fileInputRef.current) {
+            const dt = new DataTransfer();
+            dt.items.add(processedFile);
+            fileInputRef.current.files = dt.files;
+          }
+        } catch {
+          processedFile = file;
+        }
+      }
+
+      if (processedFile.size > 10 * 1024 * 1024) {
+        setPhotoError("Photo exceeds the 10 MB limit. Please select a smaller photo.");
+        return;
+      }
+
       if (photoPreview) URL.revokeObjectURL(photoPreview);
-      setPhotoPreview(URL.createObjectURL(file));
+      setPhotoPreview(URL.createObjectURL(processedFile));
     }
   };
 
   const clearPhoto = () => {
+    setPhotoError(null);
     if (photoPreview) URL.revokeObjectURL(photoPreview);
     setPhotoPreview(null);
     if (fileInputRef.current) {
@@ -362,6 +437,11 @@ export function JobIntake({
                     ? "Vehicle has a profile photo on file."
                     : "No photo registered for this Mercedes."}
                 </span>
+                {photoError && (
+                  <div className="notice" role="alert" style={{ width: "100%", margin: "6px 0 0", fontSize: "0.78rem" }}>
+                    {photoError}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -522,6 +602,11 @@ export function JobIntake({
                     <small className="muted" style={{ display: "block", marginTop: 6, fontSize: "0.72rem" }}>
                       Upload or capture client vehicle. Renders as a circular profile avatar across Job Details, Customer Record, and Work orders.
                     </small>
+                    {photoError && (
+                      <div className="notice" role="alert" style={{ margin: "8px 0 0", fontSize: "0.78rem" }}>
+                        {photoError}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
