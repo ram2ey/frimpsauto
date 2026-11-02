@@ -4,7 +4,7 @@ import { compare, hash } from "bcryptjs";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Role } from "@/generated/prisma/client";
-import { assertRole, clearSession, createSession, currentUser } from "@/lib/auth";
+import { assertRole, clearSession, createSession, currentUser, temporaryPasswordResetEnabled } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { text } from "@/lib/format";
 
@@ -40,6 +40,34 @@ export async function login(form: FormData) {
 export async function logout() {
   await clearSession();
   redirect("/login");
+}
+
+export async function resetForgottenPassword(form: FormData) {
+  // This temporary flow deliberately has no identity verification. Keep the
+  // server-side switch even when the link and page are hidden.
+  if (!temporaryPasswordResetEnabled()) redirect("/login");
+
+  const username = String(form.get("username") ?? "").trim().toLowerCase();
+  const newPassword = String(form.get("newPassword") ?? "");
+  if (!username) redirect("/forgot-password?error=Unable%20to%20reset%20password%20for%20this%20account");
+  if (!validPassword(newPassword)) {
+    redirect("/forgot-password?error=New%20password%20must%20be%20at%20least%206%20characters%20and%20at%20most%2072%20bytes");
+  }
+
+  const passwordHash = await hash(newPassword, 12);
+  const reset = await db.$transaction(async tx => {
+    const user = await tx.user.findUnique({ where: { username }, select: { id: true } });
+    if (!user) return false;
+    const updated = await tx.user.updateMany({
+      where: { id: user.id, username, active: true },
+      data: { passwordHash, mustChangePassword: false },
+    });
+    if (updated.count !== 1) return false;
+    await tx.session.deleteMany({ where: { userId: user.id } });
+    return true;
+  });
+  if (!reset) redirect("/forgot-password?error=Unable%20to%20reset%20password%20for%20this%20account");
+  redirect("/login?reset=1");
 }
 
 export async function createStaff(form: FormData) {
