@@ -11,8 +11,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "catalog:import": "tsx scripts/import-vehicles.ts",
-    "smoke": "node tests/smoke.mjs",
-    "test:password-reset": "node tests/password-reset.mjs"
+    "smoke": "node tests/smoke.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.0.0",

@@ -30,14 +30,6 @@ Permissions are checked in server actions and file routes as well as page naviga
 
 The sign-in form always uses a username. If an existing admin's username is their email address from an older setup, sign in with that email in the **Username** field, then change it under **Account** using the current password. Changing `BOOTSTRAP_ADMIN_USERNAME` alone does not rename an existing account.
 
-### Temporary password recovery
-
-Set `ALLOW_TEMPORARY_PASSWORD_RESET=true` in the app environment (or in Coolify's Compose environment) and restart/redeploy the app to enable **Forgot password?** on the login page. Users enter their existing username and a new password, then return to sign in. A successful reset signs out every existing session and satisfies any pending first-login password change. No database migration is needed.
-
-This temporary flow does not verify account ownership: anyone who knows an active username can change that account's password, including an admin's. The flag defaults to `false`. To turn recovery off, remove it or set it to `false` and restart/redeploy; the login link, page, and reset action are all disabled. Sign-in continues to use username and password.
-
-To verify recovery, set `DATABASE_URL` to a dedicated migrated database whose name ends in `_test`, run `npm run build`, then `npm run test:password-reset`. The test starts isolated production app processes with the feature enabled and disabled, checks real form submissions, and removes its test users and sessions. Ports start at 3117; override with `RESET_TEST_PORT` if needed.
-
 Admins can enter the business name, address, phone, and email under **Business details**. These appear beside the logo in downloaded invoices. Finance staff and admins can download a PDF from each invoice; it includes the customer, vehicle, line items, payments, and balance. Mileage is recorded on each job's inspection checklist so repeat visits retain separate readings. Apply the new migrations before using this version.
 
 For local development with an existing PostgreSQL server, set `DATABASE_URL`, run `npm install`, `npm run db:migrate`, `npm run db:seed`, and `npm run dev`.

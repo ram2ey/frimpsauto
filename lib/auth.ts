@@ -8,10 +8,6 @@ import { Role } from "@/generated/prisma/client";
 const COOKIE = "frimps_session";
 const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
-export function temporaryPasswordResetEnabled() {
-  return process.env.ALLOW_TEMPORARY_PASSWORD_RESET === "true";
-}
-
 export function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
