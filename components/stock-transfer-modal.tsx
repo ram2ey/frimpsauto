@@ -96,6 +96,10 @@ export function StockTransferModal({
     startTransition(async () => {
       try {
         const res = await createStockTransfer(formData);
+        if (!res.ok) {
+          setErrorMsg(res.error);
+          return;
+        }
         setSuccessMsg(`Transfer #TRF-${String(res.number).padStart(4, "0")} completed successfully!`);
         setTimeout(() => {
           closeModal();

@@ -15,18 +15,23 @@ Garage management for a Mercedes-Benz specialist workshop. The app covers custom
 | --- | --- |
 | Admin | All screens and actions, staff accounts, checklist templates, business invoice details |
 | Supervisor | Customer intake, vehicle/job creation, technician assignment, checklists, diagnostics, parts requests, job closure |
-| Finance | View jobs and customers, manage inventory, approve/reject/issue parts, invoices and payments |
+| Finance | View jobs and customers, manage inventory, all pricing (catalog prices, new parts, counter-sale price changes), approve/reject/issue parts, invoices and payments |
+| Shop Staff | Retail shop only: counter sales at catalog price, receive deliveries, set shelf reorder levels, stock transfers. Cannot set or change any price, add parts, write stock off, or handle workshop part requests |
 | Technician | Read-only view of assigned jobs and their diagnostic files |
 
-Permissions are checked in server actions and file routes as well as page navigation. Staff cannot register publicly. An admin creates each staff account with a username and temporary password. The staff member must change that password at first sign in. Every signed-in user can later change their username or password under **Account**.
+Permissions are checked in server actions and file routes as well as page navigation. Staff cannot register publicly. An admin creates each staff account with a username and temporary password. The staff member must change that password at first sign in. Every signed-in user can later change their username or password under **Account** (Shop Staff find it at `/shop/account`). New passwords need at least 10 characters. Sign-in is throttled after repeated failures (5 per username and IP, 30 per IP, per 15 minutes); the throttle lives in memory, which suits the single-container deployment below.
+
+Pricing belongs to Finance and Admin only (`lib/sale-rules.ts`). Everyone else sells at the catalog price, which the server enforces. When Finance or an Admin sells below the catalog price, a discount reason is required and saved in the sale notes.
 
 ## Setup
 
-1. Copy `.env.example` to `.env`. Set `BOOTSTRAP_ADMIN_USERNAME` and strong values for `POSTGRES_PASSWORD` and `BOOTSTRAP_ADMIN_PASSWORD`. The admin password must have at least 6 characters. Use a URL-safe value for `POSTGRES_PASSWORD`, since Compose inserts it into `DATABASE_URL`. Set `APP_URL` to the public HTTPS URL when deployed.
+1. Copy `.env.example` to `.env`. Set `BOOTSTRAP_ADMIN_USERNAME` and strong values for `POSTGRES_PASSWORD` and `BOOTSTRAP_ADMIN_PASSWORD`. The admin password must have at least 10 characters. Use a URL-safe value for `POSTGRES_PASSWORD`, since Compose inserts it into `DATABASE_URL`. Set `APP_URL` to the public HTTPS URL when deployed.
 2. Run `docker compose up --build -d`. The app waits for PostgreSQL, applies the versioned migration, creates the initial admin and checklist, then starts on internal port 3000. Compose creates persistent `postgres_data` and `diagnostic_files` volumes on the server.
+
+   The image is built in two stages, and the final one contains no build or development tools (the seed and catalog scripts are compiled to plain JavaScript in `dist/`). The container starts as root only long enough to give the `node` user ownership of the storage volume (including files saved by older versions of the image) and to run migrations and the seed; the web server itself then runs as `node` (see `scripts/docker-entrypoint.sh`).
 3. Sign in using `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD`, then change the password when prompted. Remove those two values from the app environment after the first successful start. The seed does not overwrite an existing admin account.
 
-4. The initial catalog includes common and classic Mercedes-Benz names plus a snapshot of model names from the [NHTSA vPIC API](https://vpic.nhtsa.dot.gov/api/). Run `docker compose exec app npm run catalog:import` to refresh the NHTSA names. The model field always accepts manual entry. The year selector spans 1926 through next model year.
+4. The initial catalog includes common and classic Mercedes-Benz names plus a snapshot of model names from the [NHTSA vPIC API](https://vpic.nhtsa.dot.gov/api/). Run `docker compose exec app npm run catalog:import:prod` to refresh the NHTSA names (outside Docker, use `npm run catalog:import`). The model field always accepts manual entry. The year selector spans 1926 through next model year.
 
 The sign-in form always uses a username. If an existing admin's username is their email address from an older setup, sign in with that email in the **Username** field, then change it under **Account** using the current password. Changing `BOOTSTRAP_ADMIN_USERNAME` alone does not rename an existing account.
 
@@ -38,7 +43,7 @@ Existing staff can sign in with their previous email address entered as the user
 
 ## Start with empty app data
 
-This permanently removes customers, vehicles, jobs, invoices, inventory, staff accounts, sessions, business settings, and uploaded vehicle/diagnostic files. Take a backup of the database and `diagnostic_files` volume first if any of that data may be needed later. Set `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD` (at least 6 characters) before restarting; the seed requires both to create the first admin.
+This permanently removes customers, vehicles, jobs, invoices, inventory, staff accounts, sessions, business settings, and uploaded vehicle/diagnostic files. Take a backup of the database and `diagnostic_files` volume first if any of that data may be needed later. Set `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD` (at least 10 characters) before restarting; the seed requires both to create the first admin.
 
 For a local Docker Compose installation, run these commands from this repository with the same Compose project and `.env` used to start the app:
 
@@ -51,7 +56,7 @@ The first command removes this project's `postgres_data` and `diagnostic_files` 
 
 On startup the app reapplies migrations and seeds a new admin, vehicle model catalog, and inspection checklist. The business contact address and phone from the migrations are also restored. Sign in with the configured username and temporary password, change that password when prompted, and remove the bootstrap credentials from the environment after the first successful start.
 
-For automated workflow checks, start the app against a disposable database whose name ends in `_test`, then run `npm run smoke` with the same `DATABASE_URL` and `APP_URL`. Set `SMOKE_ADMIN_USERNAME` and `SMOKE_ADMIN_PASSWORD` to include staff creation and admin checklist checks. Set `SMOKE_STORAGE=true` to include PDF/JPG upload and private-download checks. The smoke script creates test records and must never run against production data.
+For automated workflow checks, start the app against a disposable database whose name ends in `_test`, then run `npm run smoke` with the same `DATABASE_URL` and `APP_URL`. Set `SMOKE_ADMIN_USERNAME` and `SMOKE_ADMIN_PASSWORD` to include staff creation and admin checklist checks. Set `SMOKE_STORAGE=true` to include PDF/JPG upload and private-download checks. The smoke script creates test records and must never run against production data. `npm run test:audit` (same setup, after `npm run build && npm start`) checks counter-sale pricing, Shop Staff permissions, error banners, sign-in throttling and that password hashes never reach the browser.
 
 ### Coolify on Hetzner
 

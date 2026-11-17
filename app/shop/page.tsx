@@ -4,13 +4,16 @@ import { Location, Role } from "@/generated/prisma/client";
 import { CounterSaleModal } from "@/components/counter-sale-modal";
 import { StockTransferModal } from "@/components/stock-transfer-modal";
 import { requireRole } from "@/lib/auth";
+import { canSetPrices } from "@/lib/sale-rules";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
+import { counterSalesToday } from "@/lib/finance-stats";
 
 export default async function ShopPOSPage() {
-  await requireRole([Role.SHOP_STAFF, Role.FINANCE]);
+  const user = await requireRole([Role.SHOP_STAFF, Role.FINANCE]);
+  const canSetPrice = canSetPrices(user.role);
 
-  const [parts, recentSales] = await Promise.all([
+  const [parts, recentSales, today] = await Promise.all([
     db.part.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
@@ -18,26 +21,20 @@ export default async function ShopPOSPage() {
     db.directSale.findMany({
       where: { location: Location.RETAIL_SHOP },
       include: {
-        seller: true,
+        seller: { select: { name: true } },
         items: { include: { part: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
+    counterSalesToday(Location.RETAIL_SHOP),
   ]);
 
-  const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  const todaySales = recentSales.filter((s) => new Date(s.createdAt) >= startOfDay);
-  const todayRevenue = todaySales.reduce((sum, s) => sum + s.totalCents, 0);
-  const todayItemsSold = todaySales.reduce(
-    (sum, s) => sum + s.items.reduce((iSum, i) => iSum + i.quantity, 0),
-    0
-  );
+  const todayRevenue = today.revenueCents;
+  const todayItemsSold = today.itemsSold;
 
   const totalShelfStock = parts.reduce((sum, p) => sum + p.shopStockQty, 0);
-  const lowShelfStockCount = parts.filter((p) => p.shopStockQty <= p.shopReorderLevel).length;
+  const lowShelfStockCount = parts.filter((p) => p.active && p.shopStockQty <= p.shopReorderLevel).length;
 
   return (
     <main className="content">
@@ -58,7 +55,7 @@ export default async function ShopPOSPage() {
             buttonLabel="Pull from Workshop"
             className="btn btn-secondary"
           />
-          <CounterSaleModal
+          <CounterSaleModal canSetPrice={canSetPrice}
             parts={parts}
             location="RETAIL_SHOP"
             buttonLabel="Open POS Register"
@@ -78,7 +75,7 @@ export default async function ShopPOSPage() {
         <div className="card stat">
           <div className="label">Today&apos;s Transactions</div>
           <div className="value">
-            {todaySales.length}
+            {today.count}
             <small className="muted" style={{ display: "block", fontSize: "0.72rem", fontWeight: 400 }}>
               {todayItemsSold} item{todayItemsSold === 1 ? "" : "s"} sold
             </small>
@@ -132,7 +129,7 @@ export default async function ShopPOSPage() {
               buttonLabel="Request Bay Transfer"
               className="btn btn-secondary"
             />
-            <CounterSaleModal
+            <CounterSaleModal canSetPrice={canSetPrice}
               parts={parts}
               location="RETAIL_SHOP"
               buttonLabel="Start Counter Sale"

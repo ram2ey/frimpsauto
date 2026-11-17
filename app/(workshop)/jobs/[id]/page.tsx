@@ -42,7 +42,7 @@ export default async function JobDetail({
 
   const edit = (user.role === Role.SUPERVISOR || user.role === Role.ADMIN) && job.status !== "COMPLETED";
   const [technicians, parts, previousJob] = await Promise.all([
-    edit ? db.user.findMany({ where: { role: Role.TECHNICIAN, active: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
+    edit ? db.user.findMany({ where: { role: Role.TECHNICIAN, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
     edit ? db.part.findMany({ where: { active: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
     db.job.findFirst({
       where: {

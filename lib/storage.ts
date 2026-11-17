@@ -1,5 +1,6 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { UserError } from "@/lib/errors";
 
 const storageRoot = process.env.DIAGNOSTIC_STORAGE_PATH || join(process.cwd(), "storage");
 
@@ -25,4 +26,37 @@ export async function getPrivateObject(key: string) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
     throw error;
   }
+}
+
+export async function deletePrivateObject(key: string | null | undefined) {
+  if (!key) return;
+  try {
+    await unlink(filePath(key));
+  } catch (error) {
+    // A missing file is fine; anything else is logged but must not undo the save that replaced it.
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") console.error("Could not delete old file", key, error);
+  }
+}
+
+export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+
+/** Detects the real image type from the file's first bytes, ignoring the browser-supplied MIME type. */
+export function imageExtension(bytes: Uint8Array): "jpg" | "png" | "webp" | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "jpg";
+  if (bytes.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((value, index) => bytes[index] === value)) return "png";
+  if (bytes.length >= 12 && String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" && String.fromCharCode(...bytes.slice(8, 12)) === "WEBP") return "webp";
+  return null;
+}
+
+/**
+ * Reads an optional vehicle photo from a form. Returns null when no file was chosen,
+ * and throws a user-facing error for files that are too large or not JPEG/PNG/WebP.
+ */
+export async function readVehiclePhoto(value: FormDataEntryValue | null) {
+  if (!(value instanceof File) || value.size === 0) return null;
+  if (value.size > MAX_PHOTO_BYTES) throw new UserError("Vehicle photo must be 10 MB or smaller.");
+  const bytes = new Uint8Array(await value.arrayBuffer());
+  const ext = imageExtension(bytes);
+  if (!ext) throw new UserError("Vehicle photo must be a JPEG, PNG or WebP image.");
+  return { bytes, ext };
 }

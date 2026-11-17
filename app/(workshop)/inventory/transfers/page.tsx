@@ -6,30 +6,31 @@ import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date } from "@/lib/format";
 
+const LEDGER_LIMIT = 200;
+
 export default async function WorkshopTransfersPage() {
   await requireRole([Role.SUPERVISOR, Role.FINANCE]);
 
-  const [transfers, parts] = await Promise.all([
+  const [transfers, totalsByDestination, parts] = await Promise.all([
     db.stockTransfer.findMany({
       include: {
         part: true,
-        user: true,
+        user: { select: { name: true } },
       },
       orderBy: { createdAt: "desc" },
+      take: LEDGER_LIMIT,
     }),
+    db.stockTransfer.groupBy({ by: ["toLocation"], _sum: { quantity: true }, _count: { _all: true } }),
     db.part.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
     }),
   ]);
 
-  const toWorkshopUnits = transfers
-    .filter((t) => t.toLocation === "WORKSHOP")
-    .reduce((sum, t) => sum + t.quantity, 0);
+  const toWorkshopUnits = totalsByDestination.find((t) => t.toLocation === "WORKSHOP")?._sum.quantity ?? 0;
 
-  const toShopUnits = transfers
-    .filter((t) => t.toLocation === "RETAIL_SHOP")
-    .reduce((sum, t) => sum + t.quantity, 0);
+  const toShopUnits = totalsByDestination.find((t) => t.toLocation === "RETAIL_SHOP")?._sum.quantity ?? 0;
+  const totalTransfers = totalsByDestination.reduce((sum, t) => sum + t._count._all, 0);
 
   return (
     <main className="content">
@@ -57,7 +58,7 @@ export default async function WorkshopTransfersPage() {
       <div className="grid three mb">
         <div className="card stat">
           <div className="label">Total Transfers Executed</div>
-          <div className="value">{transfers.length}</div>
+          <div className="value">{totalTransfers}</div>
         </div>
         <div className="card stat">
           <div className="label">Units Received into Workshop Bay</div>
@@ -76,7 +77,7 @@ export default async function WorkshopTransfersPage() {
       <section className="card">
         <div className="section-title">
           <h2>Transfer History</h2>
-          <span className="pill">{transfers.length} records</span>
+          <span className="pill">{transfers.length < totalTransfers ? `Latest ${transfers.length} of ${totalTransfers}` : `${totalTransfers} records`}</span>
         </div>
 
         <div className="table-wrap">

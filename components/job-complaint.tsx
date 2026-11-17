@@ -19,7 +19,8 @@ export function JobComplaint({ jobId, complaint, editable }: JobComplaintProps) 
   async function handleSave(formData: FormData) {
     setError(null);
     try {
-      await updateComplaint(jobId, formData);
+      const res = await updateComplaint(jobId, formData);
+      if (!res.ok) return setError(res.error);
       setIsEditing(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to update customer complaint.");

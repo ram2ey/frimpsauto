@@ -2,8 +2,15 @@ import { login } from "@/app/auth-actions";
 import { BrandLogo } from "@/components/brand-logo";
 import { SubmitButton } from "@/components/submit-button";
 
-export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await searchParams;
+export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string; wait?: string }> }) {
+  const { error: code, wait } = await searchParams;
+  const minutes = Math.min(15, Math.max(1, Number.parseInt(wait || "", 10) || 15));
+  // Only fixed messages are shown, so a crafted link cannot put its own text on the sign-in page.
+  const error = code === "invalid"
+    ? "Invalid username or password."
+    : code === "locked"
+      ? `Too many failed sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`
+      : null;
   return <main className="login-wrap login-single">
     <section className="login-form"><div className="login-card">
       <BrandLogo className="auth-brand-logo" priority />

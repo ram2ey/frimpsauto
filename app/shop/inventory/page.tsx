@@ -1,14 +1,17 @@
 import { PackagePlus, Truck } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
-import { adjustStock, createPart } from "@/app/inventory-actions";
+import { adjustStock, setShopReorderLevel } from "@/app/inventory-actions";
+import { CreatePartForm } from "@/components/create-part-form";
 import { StockTransferModal } from "@/components/stock-transfer-modal";
 import { SubmitButton } from "@/components/submit-button";
 import { requireRole } from "@/lib/auth";
+import { canSetPrices } from "@/lib/sale-rules";
 import { db } from "@/lib/db";
 import { money } from "@/lib/format";
 
 export default async function ShopInventoryPage() {
-  await requireRole([Role.SHOP_STAFF, Role.FINANCE]);
+  const user = await requireRole([Role.SHOP_STAFF, Role.FINANCE]);
+  const canSetPrice = canSetPrices(user.role);
 
   const parts = await db.part.findMany({ orderBy: { name: "asc" } });
 
@@ -210,7 +213,8 @@ export default async function ShopInventoryPage() {
           </form>
         </section>
 
-        {/* Add New Catalog Part */}
+        {/* Add New Catalog Part — a new part carries a price, so Finance/Admin only */}
+        {canSetPrice && (
         <section className="card">
           <div className="section-title">
             <div>
@@ -222,41 +226,37 @@ export default async function ShopInventoryPage() {
             <PackagePlus size={19} />
           </div>
 
-          <form action={async (formData: FormData) => {
-            "use server";
-            formData.set("location", "RETAIL_SHOP");
-            await createPart(formData);
-          }} className="stack" style={{ gap: 14 }}>
-            <input type="hidden" name="location" value="RETAIL_SHOP" />
+          <CreatePartForm location="RETAIL_SHOP" retail />
+        </section>
+        )}
 
+        {/* Shelf low-stock alert level */}
+        <section className="card">
+          <div className="section-title">
             <div>
-              <label htmlFor="new-sku">SKU / Part Number</label>
-              <input id="new-sku" name="sku" required maxLength={60} placeholder="e.g. SPK-NGK-774" />
+              <h2>Shelf Reorder Level</h2>
+              <p className="subtitle" style={{ fontSize: "0.78rem", marginTop: 2 }}>
+                The shelf shows a low-stock alert when it falls to this quantity.
+              </p>
             </div>
-
+          </div>
+          <form action={setShopReorderLevel} className="stack" style={{ gap: 14 }}>
             <div>
-              <label htmlFor="new-name">Part Name & Description</label>
-              <input id="new-name" name="name" required maxLength={160} placeholder="e.g. NGK Iridium Spark Plug" />
+              <label htmlFor="reorder-part-id">Select Part</label>
+              <select id="reorder-part-id" name="partId" required>
+                {parts.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} · {p.sku} (Current level: {p.shopReorderLevel})
+                  </option>
+                ))}
+              </select>
             </div>
-
-            <div className="form-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-              <div>
-                <label htmlFor="new-price">Unit Price (GHS)</label>
-                <input id="new-price" name="price" type="number" step="0.01" min="0" required placeholder="0.00" />
-              </div>
-              <div>
-                <label htmlFor="new-qty">Initial Shelf Stock</label>
-                <input id="new-qty" name="stockQty" type="number" step="1" min="0" defaultValue="0" required />
-              </div>
-            </div>
-
             <div>
-              <label htmlFor="new-reorder">Shelf Reorder Alert Level</label>
-              <input id="new-reorder" name="reorderLevel" type="number" step="1" min="0" defaultValue="5" required />
+              <label htmlFor="reorder-level">Reorder level (units)</label>
+              <input id="reorder-level" name="shopReorderLevel" type="number" min="0" step="1" required placeholder="e.g. 5" />
             </div>
-
-            <SubmitButton pendingLabel="Saving SKU..." style={{ alignSelf: "start" }}>
-              Add to catalog
+            <SubmitButton className="btn btn-secondary" pendingLabel="Saving..." style={{ alignSelf: "start" }}>
+              Save reorder level
             </SubmitButton>
           </form>
         </section>

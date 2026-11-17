@@ -1,11 +1,13 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { FlashMessage } from "@/components/flash-message";
+import { FLASH_COOKIE } from "@/lib/action";
 import { LogOut, Search, ArrowUpRight } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { logout } from "@/app/auth-actions";
 import { Role } from "@/generated/prisma/client";
 import { BrandLogo } from "@/components/brand-logo";
 import { WorkshopNavigation, WorkshopPageLabel, type WorkshopSection } from "@/components/workshop-navigation";
-import { MobileNavDrawer } from "@/components/mobile-nav-drawer";
 
 import { redirect } from "next/navigation";
 
@@ -37,21 +39,12 @@ export default async function WorkshopLayout({ children }: { children: React.Rea
     </aside>
     <div className="main">
       <header className="topbar">
-        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-          <MobileNavDrawer
-            user={user}
-            portal="workshop"
-            visibleSections={visible}
-            adminSections={administration}
-            logoutAction={logout}
-          />
-          <WorkshopPageLabel />
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <Link href="/account" className="account-chip" aria-label="Account and password"><span className="account-name">{user.name}</span><span className="avatar" aria-hidden="true">{initials}</span></Link>
-          <form action={logout} className="mobile-signout"><button type="submit" className="icon-button" aria-label="Sign out"><LogOut size={17} aria-hidden="true" /></button></form>
-        </div>
+        <WorkshopPageLabel />
+        <Link href="/account" className="account-chip" aria-label="Account and password"><span className="account-name">{user.name}</span><span className="avatar" aria-hidden="true">{initials}</span></Link>
+        <form action={logout} className="mobile-signout"><button type="submit" className="icon-button" aria-label="Sign out"><LogOut size={17} aria-hidden="true" /></button></form>
       </header>
+      <WorkshopNavigation items={[...visible, ...administration, "account"]} variant="mobile" label="Mobile navigation" />
+      <FlashMessage raw={(await cookies()).get(FLASH_COOKIE)?.value} />
       <div id="workshop-content" tabIndex={-1}>{children}</div>
     </div>
   </div>;

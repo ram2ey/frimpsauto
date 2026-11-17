@@ -7,3 +7,4 @@ storage
 coverage
 .test-pg
 .npm-cache
+dist

@@ -49,7 +49,8 @@ export function InvoiceLineItems({ items, status, isAdmin }: InvoiceLineItemsPro
     setErrorMsg(null);
     startTransition(async () => {
       try {
-        await updateLabor(itemId, formData);
+        const res = await updateLabor(itemId, formData);
+        if (!res.ok) return setErrorMsg(res.error);
         setEditingId(null);
       } catch (err) {
         setErrorMsg(err instanceof Error ? err.message : "Failed to update labor line.");
@@ -61,7 +62,8 @@ export function InvoiceLineItems({ items, status, isAdmin }: InvoiceLineItemsPro
     setErrorMsg(null);
     startTransition(async () => {
       try {
-        await updatePartItem(itemId, formData);
+        const res = await updatePartItem(itemId, formData);
+        if (!res.ok) return setErrorMsg(res.error);
         setEditingId(null);
       } catch (err) {
         setErrorMsg(err instanceof Error ? err.message : "Failed to adjust part.");
@@ -73,7 +75,8 @@ export function InvoiceLineItems({ items, status, isAdmin }: InvoiceLineItemsPro
     setErrorMsg(null);
     startTransition(async () => {
       try {
-        await returnPartItem(itemId, formData);
+        const res = await returnPartItem(itemId, formData);
+        if (!res.ok) return setErrorMsg(res.error);
         setReturningId(null);
       } catch (err) {
         setErrorMsg(err instanceof Error ? err.message : "Failed to return part to stock.");
@@ -86,7 +89,8 @@ export function InvoiceLineItems({ items, status, isAdmin }: InvoiceLineItemsPro
     setErrorMsg(null);
     startTransition(async () => {
       try {
-        await removeLabor(itemId);
+        const res = await removeLabor(itemId);
+        if (!res.ok) setErrorMsg(res.error);
       } catch (err) {
         setErrorMsg(err instanceof Error ? err.message : "Failed to remove labor charge.");
       }

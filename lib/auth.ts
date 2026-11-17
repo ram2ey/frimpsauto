@@ -49,6 +49,8 @@ export async function createSession(userId: string) {
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + THIRTY_DAYS);
   await db.session.create({ data: { userId, tokenHash: hashToken(token), expiresAt } });
+  // Housekeeping: expired sessions are never valid again, so remove this user's old ones.
+  await db.session.deleteMany({ where: { userId, expiresAt: { lt: new Date() } } });
   (await cookies()).set(COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

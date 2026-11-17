@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { PackagePlus } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
-import { createPart } from "@/app/inventory-actions";
+import { CreatePartForm } from "@/components/create-part-form";
 import { CounterSaleModal } from "@/components/counter-sale-modal";
 import { StockTransferModal } from "@/components/stock-transfer-modal";
-import { SubmitButton } from "@/components/submit-button";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { money } from "@/lib/format";
@@ -29,7 +28,7 @@ export default async function Inventory() {
           <Link href="/inventory/transfers" className="btn btn-secondary btn-small" style={{ minHeight: "36px", padding: "6px 12px" }}>
             Transfers ledger
           </Link>
-          <CounterSaleModal parts={parts} location="WORKSHOP" buttonLabel="Counter sale" />
+          <CounterSaleModal canSetPrice={manage} parts={parts} location="WORKSHOP" buttonLabel="Counter sale" />
           <StockTransferModal parts={parts} defaultFrom="WORKSHOP" buttonLabel="Transfer stock" />
         </div>
       </div>
@@ -159,38 +158,7 @@ export default async function Inventory() {
             </div>
             <PackagePlus size={19} />
           </div>
-          <form action={createPart} className="form-grid">
-            <div>
-              <label htmlFor="sku">SKU / part number</label>
-              <input id="sku" name="sku" required maxLength={60} placeholder="e.g. BRK-PAD-001" />
-            </div>
-            <div>
-              <label htmlFor="name">Part name</label>
-              <input id="name" name="name" required maxLength={160} placeholder="e.g. Front Ceramic Brake Pads" />
-            </div>
-            <div>
-              <label htmlFor="price">Unit price (GHS)</label>
-              <input id="price" name="price" type="number" step="0.01" min="0" required placeholder="0.00" />
-            </div>
-            <div>
-              <label htmlFor="location">Initial stocking location</label>
-              <select id="location" name="location" defaultValue="WORKSHOP">
-                <option value="WORKSHOP">Workshop Bay</option>
-                <option value="RETAIL_SHOP">Retail Parts Shop</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="stockQty">Opening quantity</label>
-              <input id="stockQty" name="stockQty" type="number" step="1" min="0" defaultValue="0" required />
-            </div>
-            <div>
-              <label htmlFor="reorderLevel">Reorder alert level</label>
-              <input id="reorderLevel" name="reorderLevel" type="number" step="1" min="0" defaultValue="0" required />
-            </div>
-            <div style={{ alignSelf: "end" }}>
-              <SubmitButton pendingLabel="Adding part...">Add part</SubmitButton>
-            </div>
-          </form>
+          <CreatePartForm location="WORKSHOP" />
         </section>
       )}
     </main>

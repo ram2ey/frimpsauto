@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { FlashMessage } from "@/components/flash-message";
+import { FLASH_COOKIE } from "@/lib/action";
 import { redirect } from "next/navigation";
 import { LogOut, ArrowUpRight, Wrench } from "lucide-react";
 import { requireUser } from "@/lib/auth";
@@ -6,7 +9,6 @@ import { logout } from "@/app/auth-actions";
 import { Role } from "@/generated/prisma/client";
 import { BrandLogo } from "@/components/brand-logo";
 import { ShopNavigation, ShopPageLabel } from "@/components/shop-navigation";
-import { MobileNavDrawer } from "@/components/mobile-nav-drawer";
 
 const allowedRoles: Role[] = [Role.SHOP_STAFF, Role.ADMIN, Role.FINANCE];
 
@@ -83,7 +85,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         </div>
 
         <div className="side-bottom">
-          <Link href="/account" className="row account-link">
+          <Link href="/shop/account" className="row account-link">
             <span className="avatar" aria-hidden="true">
               {initials}
             </span>
@@ -108,15 +110,12 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
 
       <div className="main">
         <header className="topbar">
-          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-            <MobileNavDrawer user={user} portal="shop" logoutAction={logout} />
-            <ShopPageLabel />
-          </div>
-          <div className="row" style={{ alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <ShopPageLabel />
+          <div className="row" style={{ alignItems: "center", gap: 12 }}>
             {isWorkshopManager && (
               <Link
                 href="/dashboard"
-                className="btn btn-secondary btn-small no-print shop-topbar-switch"
+                className="btn btn-secondary btn-small no-print"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -129,7 +128,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
                 <span>Switch to Workshop</span>
               </Link>
             )}
-            <Link href="/account" className="account-chip" aria-label="Account and password">
+            <Link href="/shop/account" className="account-chip" aria-label="Account and password">
               <span className="account-name">{user.name}</span>
               <span className="avatar" aria-hidden="true">
                 {initials}
@@ -143,6 +142,9 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           </div>
         </header>
 
+        <ShopNavigation variant="mobile" label="Mobile shop navigation" />
+
+        <FlashMessage raw={(await cookies()).get(FLASH_COOKIE)?.value} />
         <div id="shop-content" tabIndex={-1}>
           {children}
         </div>

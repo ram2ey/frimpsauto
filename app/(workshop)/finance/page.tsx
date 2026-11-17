@@ -7,10 +7,13 @@ import { SubmitButton } from "@/components/submit-button";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
+import { counterSalesTotal, invoiceTotals } from "@/lib/finance-stats";
+
+const INVOICE_LIST_LIMIT = 100;
 
 export default async function Finance() {
   await requireRole([Role.FINANCE]);
-  const [requests, invoices, uninvoicedJobs, directSales, parts] = await Promise.all([
+  const [requests, invoices, uninvoicedJobs, directSales, parts, totals, directSalesTotal] = await Promise.all([
     db.partRequest.findMany({
       where: { status: { in: ["REQUESTED", "APPROVED"] } },
       include: { part: true, job: { include: { customer: true } } },
@@ -19,6 +22,7 @@ export default async function Finance() {
     db.invoice.findMany({
       include: { job: { include: { customer: true } }, items: true, payments: true },
       orderBy: { createdAt: "desc" },
+      take: INVOICE_LIST_LIMIT,
     }),
     db.job.findMany({
       where: { status: "COMPLETED", invoice: null },
@@ -27,7 +31,7 @@ export default async function Finance() {
     }),
     db.directSale.findMany({
       where: { location: Location.WORKSHOP },
-      include: { seller: true, items: { include: { part: true } } },
+      include: { seller: { select: { name: true } }, items: { include: { part: true } } },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
@@ -35,24 +39,12 @@ export default async function Finance() {
       where: { active: true },
       orderBy: { name: "asc" },
     }),
+    invoiceTotals(),
+    counterSalesTotal(Location.WORKSHOP),
   ]);
 
-  const due = invoices
-    .filter((invoice) => invoice.status !== "DRAFT")
-    .reduce(
-      (sum, invoice) =>
-        sum +
-        invoice.items.reduce((s, item) => s + item.quantity * item.unitCents, 0) -
-        invoice.payments.reduce((s, payment) => s + payment.amountCents, 0),
-      0
-    );
-
-  const received = invoices.reduce(
-    (sum, invoice) => sum + invoice.payments.reduce((s, payment) => s + payment.amountCents, 0),
-    0
-  );
-
-  const directSalesTotal = directSales.reduce((sum, s) => sum + s.totalCents, 0);
+  const due = totals.outstandingCents;
+  const received = totals.receivedCents;
 
   return (
     <main className="content">
@@ -61,7 +53,7 @@ export default async function Finance() {
           <h1>Finance & Invoicing</h1>
           <p className="subtitle">Job orders, parts requisitions, customer billing & workshop counter sales</p>
         </div>
-        <CounterSaleModal parts={parts} location="WORKSHOP" buttonLabel="+ Workshop counter sale" />
+        <CounterSaleModal canSetPrice parts={parts} location="WORKSHOP" buttonLabel="+ Workshop counter sale" />
       </div>
 
       <div className="grid four mb">
@@ -217,7 +209,7 @@ export default async function Finance() {
               Walk-in parts sales executed directly at the workshop counter
             </p>
           </div>
-          <CounterSaleModal parts={parts} location="WORKSHOP" buttonLabel="+ New counter sale" />
+          <CounterSaleModal canSetPrice parts={parts} location="WORKSHOP" buttonLabel="+ New counter sale" />
         </div>
         <div className="table-wrap">
           <table className="table">
@@ -312,6 +304,7 @@ export default async function Finance() {
             </tbody>
           </table>
           {!invoices.length && <div className="empty">Invoices will appear when parts or labor are added.</div>}
+          {invoices.length === INVOICE_LIST_LIMIT && <p className="muted" style={{ fontSize: "0.78rem", marginTop: 8 }}>Showing the {INVOICE_LIST_LIMIT} most recent invoices. Totals above include all invoices.</p>}
         </div>
       </section>
     </main>

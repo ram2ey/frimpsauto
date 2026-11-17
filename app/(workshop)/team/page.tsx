@@ -8,7 +8,11 @@ import { StaffCreateCard } from "@/components/staff-create-card";
 export default async function Team({ searchParams }: { searchParams: Promise<{ created?: string; reset?: string; updated?: string; error?: string }> }) {
   const actor = await requireRole([Role.ADMIN]);
   const { created, reset, updated, error } = await searchParams;
-  const staff = await db.user.findMany({ orderBy: { createdAt: "desc" } });
+  // Select only what the page shows: rows are passed to a client component, so anything selected here reaches the browser.
+  const staff = (await db.user.findMany({
+    select: { id: true, name: true, username: true, role: true, active: true, mustChangePassword: true, createdAt: true, passwordHash: true },
+    orderBy: { createdAt: "desc" },
+  })).map(({ passwordHash, ...member }) => ({ ...member, hasPassword: Boolean(passwordHash) }));
 
   return (
     <main className="content">
@@ -79,7 +83,7 @@ export default async function Team({ searchParams }: { searchParams: Promise<{ c
                       <span className={`pill ${member.active ? "approved" : "rejected"}`}>
                         {!member.active
                           ? "Disabled"
-                          : !member.passwordHash
+                          : !member.hasPassword
                             ? "Needs password"
                             : member.mustChangePassword
                               ? "Change required"
@@ -88,7 +92,7 @@ export default async function Team({ searchParams }: { searchParams: Promise<{ c
                     </td>
                     <td className="date-cell">{date(member.createdAt)}</td>
                     <td>
-                      <StaffRowActions member={member} isCurrentAccount={member.id === actor.id} />
+                      <StaffRowActions member={{ id: member.id, name: member.name, username: member.username, role: member.role, active: member.active }} isCurrentAccount={member.id === actor.id} />
                     </td>
                   </tr>
                 ))}

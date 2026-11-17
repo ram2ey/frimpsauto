@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { UserCheck, Car, Phone, Mail, History, X, Search, Camera } from "lucide-react";
 import { createJob } from "@/app/job-actions";
 import { SubmitButton } from "@/components/submit-button";
@@ -97,7 +98,32 @@ export function JobIntake({
   const [customerId, setCustomerId] = useState(initialCustomerId);
   const [vehicleId, setVehicleId] = useState(initialVehicleId);
   const [yearValue, setYearValue] = useState("");
-  const [customerSearch, setCustomerSearch] = useState("");
+  const searchParams = useSearchParams();
+  const [customerSearch, setCustomerSearch] = useState(searchParams.get("q") || "");
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // The server sends a limited, searched list of customers. Remember every customer we
+  // have been sent so a selected customer stays available when the search changes.
+  const [prevCustomers, setPrevCustomers] = useState(customers);
+  const [knownCustomers, setKnownCustomers] = useState(customers);
+  if (customers !== prevCustomers) {
+    setPrevCustomers(customers);
+    setKnownCustomers(known => [...known.filter(k => !customers.some(c => c.id === k.id)), ...customers]);
+  }
+
+  // Ask the server to search all customers (debounced) as the filter text changes.
+  useEffect(() => {
+    const query = customerSearch.trim();
+    if (query === (searchParams.get("q") || "")) return;
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (query) params.set("q", query);
+      else params.delete("q");
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [customerSearch, pathname, router, searchParams]);
 
   // Preserve state if user toggles between new and existing customer
   const [newCustomerName, setNewCustomerName] = useState("");
@@ -174,7 +200,10 @@ export function JobIntake({
       })
     : customers;
 
-  const selectedCustomer = customers.find((c) => c.id === customerId);
+  const selectedCustomer = knownCustomers.find((c) => c.id === customerId);
+  const customerOptions = selectedCustomer && !filteredCustomers.some((c) => c.id === selectedCustomer.id)
+    ? [selectedCustomer, ...filteredCustomers]
+    : filteredCustomers;
   const vehicles = selectedCustomer?.vehicles || [];
   const selectedVehicle = vehicles.find((v) => v.id === vehicleId);
 
@@ -229,7 +258,7 @@ export function JobIntake({
                   style={{ minHeight: "40px" }}
                 >
                   <option value="">New customer (create new record)</option>
-                  {filteredCustomers.map((customer) => (
+                  {customerOptions.map((customer) => (
                     <option value={customer.id} key={customer.id}>
                       {customer.name} · {customer.phone}
                     </option>

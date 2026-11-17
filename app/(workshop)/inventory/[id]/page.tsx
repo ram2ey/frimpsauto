@@ -77,7 +77,7 @@ export default async function PartDetail({ params }: { params: Promise<{ id: str
                     id="price"
                     name="price"
                     type="number"
-                    min="0"
+                    min="0.01"
                     step="0.01"
                     defaultValue={(part.priceCents / 100).toFixed(2)}
                     required
@@ -92,6 +92,18 @@ export default async function PartDetail({ params }: { params: Promise<{ id: str
                     min="0"
                     step="1"
                     defaultValue={part.reorderLevel}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="shopReorderLevel">Shop reorder level</label>
+                  <input
+                    id="shopReorderLevel"
+                    name="shopReorderLevel"
+                    type="number"
+                    min="0"
+                    step="1"
+                    defaultValue={part.shopReorderLevel}
                     required
                   />
                 </div>

@@ -2,34 +2,39 @@ import { Location, Role } from "@/generated/prisma/client";
 import { CounterSaleModal } from "@/components/counter-sale-modal";
 import { ReceiptViewerButton } from "@/components/receipt-viewer-button";
 import { requireRole } from "@/lib/auth";
+import { canSetPrices } from "@/lib/sale-rules";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
 
-export default async function ShopSalesPage() {
-  await requireRole([Role.SHOP_STAFF, Role.FINANCE]);
+const SALES_LIMIT = 200;
 
-  const [sales, parts] = await Promise.all([
+export default async function ShopSalesPage() {
+  const user = await requireRole([Role.SHOP_STAFF, Role.FINANCE]);
+  const canSetPrice = canSetPrices(user.role);
+
+  const [sales, saleTotals, unitTotals, parts] = await Promise.all([
     db.directSale.findMany({
       where: { location: Location.RETAIL_SHOP },
       include: {
-        seller: true,
+        seller: { select: { name: true } },
         items: { include: { part: true } },
       },
       orderBy: { createdAt: "desc" },
+      take: SALES_LIMIT,
     }),
+    db.directSale.aggregate({ where: { location: Location.RETAIL_SHOP }, _sum: { totalCents: true }, _count: { _all: true } }),
+    db.directSaleItem.aggregate({ where: { sale: { location: Location.RETAIL_SHOP } }, _sum: { quantity: true } }),
     db.part.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
     }),
   ]);
 
-  const totalRevenue = sales.reduce((sum, s) => sum + s.totalCents, 0);
-  const totalTransactions = sales.length;
+  // Headline figures cover every sale; the table below lists the most recent ones.
+  const totalRevenue = saleTotals._sum.totalCents ?? 0;
+  const totalTransactions = saleTotals._count._all;
   const avgBasket = totalTransactions > 0 ? Math.round(totalRevenue / totalTransactions) : 0;
-  const totalUnitsSold = sales.reduce(
-    (sum, s) => sum + s.items.reduce((iSum, i) => iSum + i.quantity, 0),
-    0
-  );
+  const totalUnitsSold = unitTotals._sum.quantity ?? 0;
 
   return (
     <main className="content">
@@ -43,7 +48,7 @@ export default async function ShopSalesPage() {
             Auditable transaction records, payment reconciliation & receipt re-issuance.
           </p>
         </div>
-        <CounterSaleModal
+        <CounterSaleModal canSetPrice={canSetPrice}
           parts={parts}
           location="RETAIL_SHOP"
           buttonLabel="+ New counter sale"

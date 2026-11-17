@@ -20,6 +20,7 @@ interface CartItem {
   name: string;
   quantity: number;
   unitPrice: number; // in GHS
+  listCents: number; // catalog price, for spotting discounts
 }
 
 interface CounterSaleModalProps {
@@ -27,6 +28,8 @@ interface CounterSaleModalProps {
   location?: "WORKSHOP" | "RETAIL_SHOP";
   buttonLabel?: string;
   className?: string;
+  /** Only Finance and Admin may change a price; everyone else sells at the catalog price. */
+  canSetPrice?: boolean;
 }
 
 export function CounterSaleModal({
@@ -34,6 +37,7 @@ export function CounterSaleModal({
   location = "WORKSHOP",
   buttonLabel = "Direct counter sale",
   className = "btn btn-primary",
+  canSetPrice = false,
 }: CounterSaleModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -42,6 +46,7 @@ export function CounterSaleModal({
   const [customerPhone, setCustomerPhone] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [notes, setNotes] = useState("");
+  const [discountReason, setDiscountReason] = useState("");
 
   // Line item selector state
   const [selectedPartId, setSelectedPartId] = useState<string>(parts[0]?.id || "");
@@ -71,7 +76,7 @@ export function CounterSaleModal({
     : 0;
 
   const currentPriceGhs = selectedPart ? (selectedPart.priceCents / 100).toFixed(2) : "0.00";
-  const activePriceGhs = overridePrice !== "" ? overridePrice : currentPriceGhs;
+  const activePriceGhs = canSetPrice && overridePrice !== "" ? overridePrice : currentPriceGhs;
 
   const openModal = () => {
     setErrorMsg(null);
@@ -81,6 +86,7 @@ export function CounterSaleModal({
     setCustomerPhone("");
     setPaymentMethod("Cash");
     setNotes("");
+    setDiscountReason("");
     setItemQty(1);
     setOverridePrice("");
     setIsOpen(true);
@@ -96,8 +102,8 @@ export function CounterSaleModal({
     setErrorMsg(null);
     if (!selectedPart) return;
 
-    if (itemQty <= 0) {
-      setErrorMsg("Quantity must be at least 1.");
+    if (!Number.isInteger(itemQty) || itemQty <= 0) {
+      setErrorMsg("Quantity must be a whole number of at least 1.");
       return;
     }
 
@@ -107,7 +113,11 @@ export function CounterSaleModal({
       return;
     }
 
-    const priceNum = Math.max(0, Number(activePriceGhs) || 0);
+    const priceNum = Math.round((Number(activePriceGhs) || 0) * 100) / 100;
+    if (priceNum <= 0) {
+      setErrorMsg("Price must be greater than zero.");
+      return;
+    }
 
     setCart((prev) => {
       const existing = prev.find((i) => i.partId === selectedPart.id);
@@ -126,6 +136,7 @@ export function CounterSaleModal({
           name: selectedPart.name,
           quantity: itemQty,
           unitPrice: priceNum,
+          listCents: selectedPart.priceCents,
         },
       ];
     });
@@ -139,11 +150,16 @@ export function CounterSaleModal({
   };
 
   const totalGhs = cart.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  const hasDiscount = cart.some((item) => Math.round(item.unitPrice * 100) < item.listCents);
 
   const handleCompleteSale = () => {
     setErrorMsg(null);
     if (!cart.length) {
       setErrorMsg("Cart is empty. Add at least one part to proceed.");
+      return;
+    }
+    if (hasDiscount && !discountReason.trim()) {
+      setErrorMsg("Some prices are below the catalog price. Enter a discount reason.");
       return;
     }
 
@@ -153,13 +169,14 @@ export function CounterSaleModal({
     if (customerPhone) formData.set("customerPhone", customerPhone);
     formData.set("paymentMethod", paymentMethod);
     if (notes) formData.set("notes", notes);
+    if (hasDiscount) formData.set("discountReason", discountReason.trim());
     formData.set(
       "itemsJson",
       JSON.stringify(
         cart.map((c) => ({
           partId: c.partId,
           quantity: c.quantity,
-          unitPrice: c.unitPrice,
+          unitPrice: c.unitPrice.toFixed(2),
         }))
       )
     );
@@ -167,10 +184,14 @@ export function CounterSaleModal({
     startTransition(async () => {
       try {
         const res = await createDirectSale(formData);
+        if (!res.ok) {
+          setErrorMsg(res.error);
+          return;
+        }
         setCompletedSale({
           saleId: res.saleId,
           number: res.saleNumber,
-          total: totalGhs,
+          total: res.totalCents / 100,
           items: [...cart],
           customerName,
           customerPhone,
@@ -433,16 +454,22 @@ export function CounterSaleModal({
                       </div>
 
                       <div style={{ width: 95 }}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={activePriceGhs}
-                          onChange={(e) => setOverridePrice(e.target.value)}
-                          placeholder="Price (GHS)"
-                          title="Unit price override"
-                          style={{ fontSize: "0.8rem", minHeight: "36px" }}
-                        />
+                        {canSetPrice ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            value={activePriceGhs}
+                            onChange={(e) => setOverridePrice(e.target.value)}
+                            placeholder="Price (GHS)"
+                            title="Unit price override"
+                            style={{ fontSize: "0.8rem", minHeight: "36px" }}
+                          />
+                        ) : (
+                          <span title="Catalog price. Only Finance or an Admin can change prices." style={{ fontSize: "0.8rem", lineHeight: "36px", whiteSpace: "nowrap" }}>
+                            {money(selectedPart?.priceCents ?? 0)}
+                          </span>
+                        )}
                       </div>
 
                       <button
@@ -555,6 +582,22 @@ export function CounterSaleModal({
                       </strong>
                     </div>
                   </div>
+
+                  {hasDiscount && (
+                    <div style={{ marginTop: 8 }}>
+                      <label htmlFor="pos-discount-reason" style={{ fontSize: "0.75rem" }}>
+                        Discount reason (required — some prices are below catalog)
+                      </label>
+                      <input
+                        id="pos-discount-reason"
+                        value={discountReason}
+                        onChange={(e) => setDiscountReason(e.target.value)}
+                        maxLength={300}
+                        placeholder="e.g. Loyal customer, bulk purchase"
+                        style={{ fontSize: "0.8rem", minHeight: "34px" }}
+                      />
+                    </div>
+                  )}
 
                   <div className="modal-actions" style={{ marginTop: 8 }}>
                     <button type="button" className="btn btn-secondary" onClick={closeModal}>

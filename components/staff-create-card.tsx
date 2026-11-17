@@ -11,10 +11,8 @@ export function StaffCreateCard() {
 
   const generatePassword = () => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*";
-    let generated = "";
-    for (let i = 0; i < 16; i++) {
-      generated += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+    const bytes = crypto.getRandomValues(new Uint32Array(16));
+    const generated = Array.from(bytes, value => chars.charAt(value % chars.length)).join("");
     setPassword(generated);
     setShowPassword(true);
   };
@@ -85,13 +83,13 @@ export function StaffCreateCard() {
               id="password"
               name="password"
               type={showPassword ? "text" : "password"}
-              minLength={6}
+              minLength={10}
               maxLength={72}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
               required
-              placeholder="Minimum 6 characters"
+              placeholder="Minimum 10 characters"
             />
             <button
               type="button"

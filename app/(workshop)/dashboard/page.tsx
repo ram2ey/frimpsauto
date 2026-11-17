@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowUpRight, Plus, ArrowRight, Wrench } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
 import { requireUser } from "@/lib/auth";
+import { invoiceTotals } from "@/lib/finance-stats";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
 import { VehicleAvatar } from "@/components/vehicle-avatar";
@@ -29,7 +30,7 @@ export default async function Dashboard() {
     db.job.groupBy({ by: ["status"], where: jobWhere, _count: { _all: true } }),
     technician ? Promise.resolve(0) : db.customer.count(),
     db.partRequest.count({ where: { status: "REQUESTED", ...(technician ? { job: { technicianId: user.id } } : {}) } }),
-    financial ? db.invoice.findMany({ include: { items: true, payments: true } }) : Promise.resolve([]),
+    financial ? invoiceTotals() : Promise.resolve(null),
   ]);
 
   const workload = statuses.map(status => ({
@@ -39,9 +40,7 @@ export default async function Dashboard() {
   const total = workload.reduce((sum, status) => sum + status.count, 0);
   const active = workload[0].count + workload[1].count;
   const waiting = workload[2].count;
-  const outstanding = invoices
-    .filter(invoice => invoice.status !== "DRAFT")
-    .reduce((sum, invoice) => sum + invoice.items.reduce((s, i) => s + i.quantity * i.unitCents, 0) - invoice.payments.reduce((s, p) => s + p.amountCents, 0), 0);
+  const outstanding = invoices?.outstandingCents ?? 0;
 
   return (
     <main className="content dashboard">

@@ -45,10 +45,8 @@ export function StaffRowActions({
 
   const generatePassword = () => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*";
-    let generated = "";
-    for (let i = 0; i < 16; i++) {
-      generated += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+    const bytes = crypto.getRandomValues(new Uint32Array(16));
+    const generated = Array.from(bytes, value => chars.charAt(value % chars.length)).join("");
     setPassword(generated);
     setShowPassword(true);
   };
@@ -246,13 +244,13 @@ export function StaffRowActions({
                   id={`password-${member.id}`}
                   name="password"
                   type={showPassword ? "text" : "password"}
-                  minLength={6}
+                  minLength={10}
                   maxLength={72}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="new-password"
-                  placeholder="At least 6 characters"
+                  placeholder="At least 10 characters"
                 />
                 <button
                   type="button"
@@ -264,7 +262,7 @@ export function StaffRowActions({
                 </button>
               </div>
               <small className="muted" style={{ display: "block", marginTop: 4 }}>
-                At least 6 characters, up to 72 bytes. The user will be required to change it upon next login.
+                At least 10 characters, up to 72 bytes. The user will be required to change it upon next login.
               </small>
             </div>
 
