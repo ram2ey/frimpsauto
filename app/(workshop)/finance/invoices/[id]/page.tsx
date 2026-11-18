@@ -1,5 +1,7 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { paymentMethods } from "@/lib/payment-details";
 import { Role } from "@/generated/prisma/client";
 import { addLabor, issueInvoice, recordPayment } from "@/app/billing-actions";
 import { requireRole } from "@/lib/auth";
@@ -29,6 +31,7 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
   const total = invoice.items.reduce((sum, item) => sum + item.quantity * item.unitCents, 0);
   const paid = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0);
   const balance = total - paid;
+  const payment = paymentMethods(business);
 
   return (
     <main className="content">
@@ -126,6 +129,30 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
           isAdmin={isAdmin}
         />
       </section>
+
+      {balance > 0 && payment.length > 0 && (
+        <section className="card mb">
+          <div className="section-title"><h2>Payment details</h2></div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+            {payment.map(method => (
+              <div key={method.title}>
+                <strong style={{ display: "block", marginBottom: 4 }}>{method.title}</strong>
+                <dl className="detail-list">
+                  {method.lines.map(line => (
+                    <Fragment key={line.label}>
+                      <dt>{line.label}</dt>
+                      <dd style={{ fontWeight: line.label.includes("number") || line.label === "Number" ? 600 : undefined }}>{line.value}</dd>
+                    </Fragment>
+                  ))}
+                </dl>
+              </div>
+            ))}
+          </div>
+          <p className="muted" style={{ margin: "8px 0 0", fontSize: "0.8rem" }}>
+            Please use INV-{String(invoice.number).padStart(5, "0")} as the payment reference.
+          </p>
+        </section>
+      )}
 
       {invoice.status === "DRAFT" && (
         <div className="grid two mb no-print">

@@ -17,7 +17,17 @@ export async function updateBusinessProfile(form: FormData) {
     const phone = String(form.get("phone") || "").trim().slice(0, 50) || null;
     const email = String(form.get("email") || "").trim().slice(0, 100) || null;
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new UserError("Enter a valid business email.");
-    await db.businessProfile.upsert({ where: { id: "primary" }, create: { id: "primary", name, address, phone, email }, update: { name, address, phone, email } });
+    const optional = (key: string, max: number) => String(form.get(key) || "").trim().slice(0, max) || null;
+    const payment = {
+      bankName: optional("bankName", 80),
+      bankAccountName: optional("bankAccountName", 120),
+      bankAccountNumber: optional("bankAccountNumber", 40),
+      bankBranch: optional("bankBranch", 80),
+      momoNumber: optional("momoNumber", 30),
+      momoName: optional("momoName", 120),
+    };
+    const data = { name, address, phone, email, ...payment };
+    await db.businessProfile.upsert({ where: { id: "primary" }, create: { id: "primary", ...data }, update: data });
     revalidatePath("/settings");
     redirect("/settings?saved=1");
   });

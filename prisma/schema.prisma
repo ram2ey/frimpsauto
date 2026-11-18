@@ -333,5 +333,12 @@ model BusinessProfile {
   address   String?
   phone     String?
   email     String?
+  // Payment details printed on invoices
+  bankName          String?
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankBranch        String?
+  momoNumber        String?
+  momoName          String?
   updatedAt DateTime @updatedAt
 }

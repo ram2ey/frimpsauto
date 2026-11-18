@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { paymentMethods } from "@/lib/payment-details";
 
 type InvoiceForPdf = {
   number: number;
@@ -15,7 +16,7 @@ type InvoiceForPdf = {
   items: { type: string; description: string; quantity: number; unitCents: number }[];
   payments: { amountCents: number; paidAt: Date; method: string; reference: string | null }[];
 };
-type BusinessForPdf = { name: string; address: string | null; phone: string | null; email: string | null } | null;
+type BusinessForPdf = ({ name: string; address: string | null; phone: string | null; email: string | null } & Parameters<typeof paymentMethods>[0]) | null;
 
 const money = (cents: number) => `GHS ${(cents / 100).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const date = (value: Date) => new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(value);
@@ -138,7 +139,7 @@ export async function createInvoicePdf(invoice: InvoiceForPdf, business: Busines
   tableHead();
   for (const item of invoice.items) {
     const lines = wrap(item.description, 48);
-    const height = Math.max(29, lines.length * 13 + 12);
+    const height = Math.max(32, lines.length * 13 + 16);
     if (y + height > 755) { startPage(); tableHead(); }
     lines.forEach((value, index) => write(value, 50, y + index * 13, 9));
     write(item.type.toLowerCase(), 50, y + lines.length * 13, 7, false, "0.36 0.46 0.54");
@@ -146,20 +147,39 @@ export async function createInvoicePdf(invoice: InvoiceForPdf, business: Busines
     right(money(item.unitCents), 464, y, 9);
     right(money(item.quantity * item.unitCents), 545, y, 9, true);
     y += height;
-    line(42, y - 6, 553, y - 6);
+    line(42, y - 12, 553, y - 12);
   }
   if (!invoice.items.length) { write("No charges yet", 50, y + 4, 9); y += 35; }
   const total = invoice.items.reduce((sum, item) => sum + item.quantity * item.unitCents, 0);
   const paid = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0);
   room(100);
   y += 16;
-  write("Total", 408, y, 10, true); right(money(total), 545, y, 10, true);
+  write("Total", 370, y, 10, true); right(money(total), 545, y, 10, true);
   y += 22;
-  write("Paid", 408, y, 10); right(money(paid), 545, y, 10);
+  write("Paid", 370, y, 10); right(money(paid), 545, y, 10);
   y += 22;
-  line(400, y - 10, 553, y - 10);
-  write("Balance due", 408, y + 5, 11, true); right(money(total - paid), 545, y + 5, 11, true);
+  line(362, y - 10, 553, y - 10);
+  write("Balance due", 370, y + 5, 11, true); right(money(total - paid), 545, y + 5, 11, true);
   y += 39;
+  const methods = total - paid > 0 ? paymentMethods(business) : [];
+  if (methods.length) {
+    const rows = Math.max(...methods.map(method => method.lines.length));
+    const height = 50 + rows * 13;
+    room(height + 10);
+    rect(42, y - 12, 511, height, "0.94 0.97 0.99");
+    write("PAYMENT DETAILS", 54, y + 3, 8, true);
+    methods.slice(0, 2).forEach((method, column) => {
+      const x = column === 0 ? 54 : 305;
+      write(method.title, x, y + 21, 9, true);
+      method.lines.forEach((entry, index) => {
+        write(`${entry.label}:`, x, y + 36 + index * 13, 8, false, "0.36 0.46 0.54");
+        write(entry.value, x + 82, y + 36 + index * 13, 9, entry.label.toLowerCase().includes("number"));
+      });
+    });
+    y += height;
+    write(`Please use ${invoiceNumber} as the payment reference.`, 42, y + 2, 8, false, "0.36 0.46 0.54");
+    y += 24;
+  }
   if (invoice.payments.length) {
     room(45);
     write("PAYMENTS", 42, y, 9, true);
