@@ -47,6 +47,12 @@ enum InvoiceItemType {
   ITEM
 }
 
+enum IssueStatus {
+  FIXED
+  PARTIAL
+  NOT_FIXED
+}
+
 model User {
   id            String   @id @default(cuid())
   name          String
@@ -64,6 +70,7 @@ model User {
   stockMoves    StockMovement[]
   transfers     StockTransfer[]
   directSales   DirectSale[]
+  issueReports  JobIssue[] @relation("IssueReporter")
 }
 
 model Session {
@@ -119,6 +126,7 @@ model Job {
   vehicleId      String
   complaint      String
   findings       String?
+  workNotes      String?     // Technician's extra notes alongside the issue report
   mileage        Int?
   status         JobStatus   @default(OPEN)
   technicianId   String?
@@ -131,6 +139,7 @@ model Job {
   technician     User?       @relation("AssignedTechnician", fields: [technicianId], references: [id])
   createdBy      User        @relation("JobCreator", fields: [createdById], references: [id])
   checklist      JobChecklistItem[]
+  issues         JobIssue[]
   diagnostics    Diagnostic[]
   partRequests   PartRequest[]
   invoice        Invoice?
@@ -163,6 +172,22 @@ model JobChecklistItem {
   result    String?
   note      String?
   job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}
+
+/// One issue the supervisor listed for a job; the technician reports whether it was fixed.
+model JobIssue {
+  id           String       @id @default(cuid())
+  jobId        String
+  label        String
+  sortOrder    Int
+  status       IssueStatus?
+  note         String?
+  reportedById String?
+  reportedAt   DateTime?
+  job          Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  reportedBy   User?        @relation("IssueReporter", fields: [reportedById], references: [id], onDelete: SetNull)
+
+  @@index([jobId])
 }
 
 model Diagnostic {

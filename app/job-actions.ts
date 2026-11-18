@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { JobStatus, Role } from "@/generated/prisma/client";
-import { formAction, resultAction } from "@/lib/action";
+import { formAction, resultAction, serializable } from "@/lib/action";
 import { assertRole } from "@/lib/auth";
 import { UserError } from "@/lib/errors";
 import { db } from "@/lib/db";
@@ -115,6 +115,67 @@ export async function updateFindings(jobId: string, form: FormData) {
   });
 }
 
+const ISSUE_STATUSES = ["FIXED", "PARTIAL", "NOT_FIXED"] as const;
+const issueKey = (label: string) => label.toLowerCase().replace(/\s+/g, " ").trim();
+
+/**
+ * Supervisor saves the issue list as free text, one issue per line. Lines that are
+ * unchanged keep the technician's answers; new lines become new unanswered issues;
+ * removed lines are deleted.
+ */
+export async function saveIssues(jobId: string, form: FormData) {
+  return formAction(async () => {
+    await assertRole(editors);
+    const labels = String(form.get("issues") || "")
+      .split(/\r?\n/)
+      .map(line => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
+      .filter(Boolean);
+    if (labels.length > 50) throw new UserError("A job can list at most 50 issues.");
+    if (labels.some(label => label.length > 300)) throw new UserError("Each issue must be 300 characters or fewer.");
+
+    await serializable(async tx => {
+      const job = await tx.job.findUnique({ where: { id: jobId }, include: { issues: { orderBy: { sortOrder: "asc" } } } });
+      if (!job || job.status === JobStatus.COMPLETED) throw new UserError("This job is closed.");
+      const unmatched = [...job.issues];
+      const keep: { id: string; label: string; sortOrder: number }[] = [];
+      const create: { jobId: string; label: string; sortOrder: number }[] = [];
+      labels.forEach((label, sortOrder) => {
+        const index = unmatched.findIndex(issue => issueKey(issue.label) === issueKey(label));
+        if (index >= 0) keep.push({ id: unmatched.splice(index, 1)[0].id, label, sortOrder });
+        else create.push({ jobId, label, sortOrder });
+      });
+      if (unmatched.length) await tx.jobIssue.deleteMany({ where: { id: { in: unmatched.map(issue => issue.id) } } });
+      for (const issue of keep) await tx.jobIssue.update({ where: { id: issue.id }, data: { label: issue.label, sortOrder: issue.sortOrder } });
+      if (create.length) await tx.jobIssue.createMany({ data: create });
+    });
+    revalidatePath(`/jobs/${jobId}`);
+  });
+}
+
+/** Assigned technician (or supervisor/admin) records what was and wasn't fixed. */
+export async function saveIssueReport(jobId: string, form: FormData) {
+  return formAction(async () => {
+    const actor = await assertRole([Role.SUPERVISOR, Role.TECHNICIAN]);
+    const workNotes = String(form.get("workNotes") || "").trim().slice(0, 5000) || null;
+    await serializable(async tx => {
+      const job = await tx.job.findUnique({ where: { id: jobId }, include: { issues: true } });
+      if (!job || (actor.role === Role.TECHNICIAN && job.technicianId !== actor.id)) throw new UserError("Job not found.");
+      if (job.status === JobStatus.COMPLETED) throw new UserError("This job is closed.");
+      const now = new Date();
+      for (const issue of job.issues) {
+        const rawStatus = String(form.get(`status:${issue.id}`) || "");
+        if (rawStatus && !(ISSUE_STATUSES as readonly string[]).includes(rawStatus)) throw new UserError("Invalid issue status.");
+        const status = (rawStatus || null) as (typeof ISSUE_STATUSES)[number] | null;
+        const note = String(form.get(`note:${issue.id}`) || "").trim().slice(0, 500) || null;
+        if (status === issue.status && note === issue.note) continue;
+        await tx.jobIssue.update({ where: { id: issue.id }, data: { status, note, reportedById: actor.id, reportedAt: now } });
+      }
+      if (workNotes !== job.workNotes) await tx.job.update({ where: { id: jobId }, data: { workNotes } });
+    });
+    revalidatePath(`/jobs/${jobId}`);
+  });
+}
+
 export async function updateComplaint(jobId: string, form: FormData) {
   return resultAction(async () => {
     await assertRole(editors);
@@ -185,9 +246,10 @@ export async function requestPart(jobId: string, form: FormData) {
 export async function closeJob(jobId: string) {
   return formAction(async () => {
     await assertRole(editors);
-    const job = await db.job.findUnique({ where: { id: jobId }, include: { partRequests: true } });
+    const job = await db.job.findUnique({ where: { id: jobId }, include: { partRequests: true, issues: true } });
     if (!job || job.status === JobStatus.COMPLETED) throw new UserError("Job is already closed.");
     if (job.partRequests.some(request => request.status === "REQUESTED" || request.status === "APPROVED")) throw new UserError("Resolve open part requests before closing this job.");
+    if (job.issues.some(issue => !issue.status)) throw new UserError("Every issue needs a technician report (fixed, partly fixed or not fixed) before closing this job.");
     await db.job.update({ where: { id: jobId }, data: { status: JobStatus.COMPLETED, closedAt: new Date() } });
     revalidatePath(`/jobs/${jobId}`);
     revalidatePath("/jobs");

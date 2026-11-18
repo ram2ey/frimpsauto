@@ -18,6 +18,9 @@ interface JobCompleteModalProps {
   checklistCount: number;
   totalChecklistCount: number;
   partRequests: PartRequestSummary[];
+  issueCount: number;
+  unreportedIssues: number;
+  notFixedIssues: number;
 }
 
 export function JobCompleteModal({
@@ -27,6 +30,9 @@ export function JobCompleteModal({
   checklistCount,
   totalChecklistCount,
   partRequests,
+  issueCount,
+  unreportedIssues,
+  notFixedIssues,
 }: JobCompleteModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -34,7 +40,12 @@ export function JobCompleteModal({
     (r) => r.status === "REQUESTED" || r.status === "APPROVED"
   );
   const issuedRequests = partRequests.filter((r) => r.status === "ISSUED");
-  const hasBlockers = openRequests.length > 0;
+  const hasPartBlockers = openRequests.length > 0;
+  const hasBlockers = hasPartBlockers || unreportedIssues > 0;
+  const blockerSummary = [
+    openRequests.length > 0 && `${openRequests.length} open parts request(s) must be issued or rejected`,
+    unreportedIssues > 0 && `${unreportedIssues} issue(s) still need a technician report`,
+  ].filter(Boolean).join("; ");
   const isChecklistComplete = checklistCount === totalChecklistCount && totalChecklistCount > 0;
 
   const openModal = () => {
@@ -52,14 +63,14 @@ export function JobCompleteModal({
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <strong>Job order completion</strong>
             {hasBlockers ? (
-              <span className="pill rejected">{openRequests.length} pending parts blocker</span>
+              <span className="pill rejected">Not ready to close</span>
             ) : (
               <span className="pill approved">Ready to close</span>
             )}
           </div>
           <p className="hint" style={{ margin: "4px 0 0" }}>
             {hasBlockers
-              ? `Cannot complete bay work yet: ${openRequests.length} open parts request(s) must be issued or rejected.`
+              ? `Cannot complete bay work yet: ${blockerSummary}.`
               : "Review completion checklist before finalizing this vehicle's workshop visit."}
           </p>
         </div>
@@ -156,8 +167,8 @@ export function JobCompleteModal({
                 gap: 12,
                 padding: "12px 14px",
                 borderRadius: 14,
-                background: hasBlockers ? "#fdf0ee" : "#f0fbf4",
-                border: `1px solid ${hasBlockers ? "#f1b7b7" : "#bfe8cb"}`,
+                background: hasPartBlockers ? "#fdf0ee" : "#f0fbf4",
+                border: `1px solid ${hasPartBlockers ? "#f1b7b7" : "#bfe8cb"}`,
               }}
             >
               <span
@@ -167,22 +178,22 @@ export function JobCompleteModal({
                   width: 26,
                   height: 26,
                   borderRadius: "50%",
-                  background: hasBlockers ? "#c62828" : "#2e7d32",
+                  background: hasPartBlockers ? "#c62828" : "#2e7d32",
                   color: "#fff",
                   flexShrink: 0,
                   marginTop: 1,
                 }}
                 aria-hidden="true"
               >
-                {hasBlockers ? <AlertCircle size={14} strokeWidth={2} /> : <PackageCheck size={14} strokeWidth={2} />}
+                {hasPartBlockers ? <AlertCircle size={14} strokeWidth={2} /> : <PackageCheck size={14} strokeWidth={2} />}
               </span>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <strong style={{ fontSize: "0.82rem", display: "block" }}>
                   Parts Requisitions ({issuedRequests.length} issued
                   {openRequests.length > 0 ? `, ${openRequests.length} open` : ""})
                 </strong>
-                <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: hasBlockers ? "#991b1b" : "var(--muted)" }}>
-                  {hasBlockers
+                <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: hasPartBlockers ? "#991b1b" : "var(--muted)" }}>
+                  {hasPartBlockers
                     ? `Blocker: Open part requests must be issued or rejected before closing.`
                     : partRequests.length === 0
                       ? "No parts were requested for this job."
@@ -190,6 +201,50 @@ export function JobCompleteModal({
                 </p>
               </div>
             </div>
+
+            {/* Prerequisite: Technician issue report */}
+            {issueCount > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 12,
+                  padding: "12px 14px",
+                  borderRadius: 14,
+                  background: unreportedIssues ? "#fdf0ee" : notFixedIssues ? "#fbf8f0" : "#f0fbf4",
+                  border: `1px solid ${unreportedIssues ? "#f1b7b7" : notFixedIssues ? "#e9ddbf" : "#bfe8cb"}`,
+                }}
+              >
+                <span
+                  style={{
+                    display: "grid",
+                    placeItems: "center",
+                    width: 26,
+                    height: 26,
+                    borderRadius: "50%",
+                    background: unreportedIssues ? "#c62828" : notFixedIssues ? "#b26a00" : "#2e7d32",
+                    color: "#fff",
+                    flexShrink: 0,
+                    marginTop: 1,
+                  }}
+                  aria-hidden="true"
+                >
+                  {unreportedIssues ? <AlertCircle size={14} strokeWidth={2} /> : notFixedIssues ? <AlertTriangle size={13} strokeWidth={2} /> : <Check size={14} strokeWidth={2.5} />}
+                </span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <strong style={{ fontSize: "0.82rem", display: "block" }}>
+                    Technician report ({issueCount - unreportedIssues}/{issueCount} issues reported)
+                  </strong>
+                  <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: unreportedIssues ? "#991b1b" : "var(--muted)" }}>
+                    {unreportedIssues
+                      ? `Blocker: ${unreportedIssues} issue(s) have no fixed / not fixed answer yet.`
+                      : notFixedIssues
+                        ? `${notFixedIssues} issue(s) were not fully fixed. Review the notes before handing the vehicle over.`
+                        : "All listed issues were fixed."}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Operational Impact Notice */}
             <div className="modal-warning-box" style={{ marginTop: 0 }}>
@@ -214,7 +269,7 @@ export function JobCompleteModal({
                 className="btn btn-teal btn-small"
                 disabled={hasBlockers}
                 pendingLabel="Completing job..."
-                title={hasBlockers ? "Resolve open part requests first" : "Mark job complete"}
+                title={hasBlockers ? "Resolve the blockers above first" : "Mark job complete"}
               >
                 <CheckCircle2 size={14} aria-hidden="true" />
                 <span>Mark job complete</span>

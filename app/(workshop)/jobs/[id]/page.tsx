@@ -4,6 +4,7 @@ import { FileText, Plus, ArrowUpRight } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
 import { JobInspection } from "@/components/job-inspection";
 import { JobComplaint } from "@/components/job-complaint";
+import { JobIssues } from "@/components/job-issues";
 import { JobTabs } from "@/components/job-tabs";
 import { JobCompleteModal } from "@/components/job-complete-modal";
 import { PrintButton } from "@/components/print-button";
@@ -33,6 +34,7 @@ export default async function JobDetail({
       vehicle: { include: { model: true } },
       technician: true,
       checklist: { orderBy: { sortOrder: "asc" } },
+      issues: { orderBy: { sortOrder: "asc" }, include: { reportedBy: { select: { name: true } } } },
       diagnostics: { orderBy: { createdAt: "desc" }, include: { uploadedBy: true } },
       partRequests: { include: { part: true }, orderBy: { createdAt: "desc" } },
       invoice: { include: { items: true, payments: true } },
@@ -41,6 +43,8 @@ export default async function JobDetail({
   if (!job) notFound();
 
   const edit = (user.role === Role.SUPERVISOR || user.role === Role.ADMIN) && job.status !== "COMPLETED";
+  // canViewJob already limits technicians to their own assigned jobs.
+  const canReport = job.status !== "COMPLETED" && (edit || user.role === Role.TECHNICIAN);
   const [technicians, parts, previousJob] = await Promise.all([
     edit ? db.user.findMany({ where: { role: Role.TECHNICIAN, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
     edit ? db.part.findMany({ where: { active: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
@@ -134,6 +138,7 @@ export default async function JobDetail({
           billing: job.invoice ? money(balance) : undefined,
         }}
         overview={
+          <>
           <div className="grid two mb">
             <section className="card">
               <div className="section-title">
@@ -176,6 +181,14 @@ export default async function JobDetail({
               )}
             </section>
           </div>
+          <JobIssues
+            jobId={id}
+            issues={job.issues}
+            workNotes={job.workNotes}
+            canEditList={edit}
+            canReport={canReport}
+          />
+          </>
         }
         checklist={
           <div className="mb">
@@ -380,6 +393,9 @@ export default async function JobDetail({
           checklistCount={checkedCount}
           totalChecklistCount={totalCount}
           partRequests={job.partRequests}
+          issueCount={job.issues.length}
+          unreportedIssues={job.issues.filter(issue => !issue.status).length}
+          notFixedIssues={job.issues.filter(issue => issue.status && issue.status !== "FIXED").length}
         />
       )}
 
