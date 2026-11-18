@@ -19,16 +19,23 @@ export async function ensureInvoice(jobId: string) {
   });
 }
 
+/** Line types finance can add, edit and remove freely. PART lines are inventory-linked and admin-only. */
+const FREE_LINE_TYPES = ["LABOR", "ITEM"] as const;
+type FreeLineType = (typeof FREE_LINE_TYPES)[number];
+const isFreeLine = (type: string): type is FreeLineType => (FREE_LINE_TYPES as readonly string[]).includes(type);
+
 export async function addLabor(invoiceId: string, form: FormData) {
   return formAction(async () => {
     await assertRole([Role.FINANCE]);
+    const type = String(form.get("type") || "LABOR");
+    if (!isFreeLine(type)) throw new UserError("Choose a valid line type.");
     const description = text(form.get("description"), "Description", 250);
     const quantity = positiveInt(form.get("quantity"), "Quantity");
     const unitCents = amountFromForm(form.get("price"));
     await serializable(async tx => {
       const invoice = await tx.invoice.findUnique({ where: { id: invoiceId } });
       if (!invoice || invoice.status !== "DRAFT") throw new UserError("Only draft invoices can be edited.");
-      await tx.invoiceItem.create({ data: { invoiceId, type: "LABOR", description, quantity, unitCents } });
+      await tx.invoiceItem.create({ data: { invoiceId, type, description, quantity, unitCents } });
     });
     revalidatePath(`/finance/invoices/${invoiceId}`);
     revalidatePath("/finance");
@@ -43,7 +50,7 @@ export async function updateLabor(itemId: string, form: FormData) {
     const unitCents = amountFromForm(form.get("price"));
     const item = await serializable(async tx => {
       const found = await tx.invoiceItem.findUnique({ where: { id: itemId }, include: { invoice: true } });
-      if (!found || found.type !== "LABOR" || found.invoice.status !== "DRAFT") throw new UserError("This labor line cannot be edited.");
+      if (!found || !isFreeLine(found.type) || found.invoice.status !== "DRAFT") throw new UserError("This line cannot be edited.");
       await tx.invoiceItem.update({ where: { id: itemId }, data: { description, quantity, unitCents } });
       return found;
     });
@@ -57,11 +64,12 @@ export async function removeLabor(itemId: string) {
     await assertRole([Role.FINANCE]);
     const item = await serializable(async tx => {
       const found = await tx.invoiceItem.findUnique({ where: { id: itemId }, include: { invoice: true } });
-      if (!found || found.type !== "LABOR" || found.invoice.status !== "DRAFT") throw new UserError("This invoice line cannot be removed.");
+      if (!found || !isFreeLine(found.type) || found.invoice.status !== "DRAFT") throw new UserError("This invoice line cannot be removed.");
       await tx.invoiceItem.delete({ where: { id: itemId } });
       return found;
     });
     revalidatePath(`/finance/invoices/${item.invoiceId}`);
+    revalidatePath("/finance");
   });
 }
 
@@ -211,7 +219,7 @@ export async function issueInvoice(invoiceId: string) {
       const invoice = await tx.invoice.findUnique({ where: { id: invoiceId }, include: { job: true, items: true } });
       if (!invoice || invoice.status !== "DRAFT") throw new UserError("Invoice is not a draft.");
       if (invoice.job.status !== "COMPLETED") throw new UserError("The supervisor must close the job before the invoice is issued.");
-      if (!invoice.items.length) throw new UserError("Add a part or labor line before issuing the invoice.");
+      if (!invoice.items.length) throw new UserError("Add at least one line before issuing the invoice.");
       await tx.invoice.update({ where: { id: invoiceId }, data: { status: "ISSUED", issuedAt: new Date() } });
     });
     revalidatePath(`/finance/invoices/${invoiceId}`);

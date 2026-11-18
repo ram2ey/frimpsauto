@@ -130,8 +130,15 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
       {invoice.status === "DRAFT" && (
         <div className="grid two mb no-print">
           <section className="card">
-            <h2>Add labor or service</h2>
+            <h2>Add charge</h2>
             <form action={addLabor.bind(null, id)} className="stack">
+              <div>
+                <label htmlFor="type">Type</label>
+                <select id="type" name="type" defaultValue="LABOR">
+                  <option value="LABOR">Labor / service</option>
+                  <option value="ITEM">Item (e.g. part bought outside)</option>
+                </select>
+              </div>
               <div>
                 <label htmlFor="description">Description</label>
                 <input id="description" name="description" required maxLength={250} />

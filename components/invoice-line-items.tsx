@@ -7,7 +7,7 @@ import { updateLabor, removeLabor, updatePartItem, returnPartItem } from "@/app/
 
 export interface InvoiceLineItemData {
   id: string;
-  type: "PART" | "LABOR";
+  type: "PART" | "LABOR" | "ITEM";
   description: string;
   quantity: number;
   unitCents: number;
@@ -85,7 +85,7 @@ export function InvoiceLineItems({ items, status, isAdmin }: InvoiceLineItemsPro
   };
 
   const handleRemoveLabor = (itemId: string) => {
-    if (!confirm("Are you sure you want to remove this labor line?")) return;
+    if (!confirm("Are you sure you want to remove this line?")) return;
     setErrorMsg(null);
     startTransition(async () => {
       try {
@@ -147,7 +147,7 @@ export function InvoiceLineItems({ items, status, isAdmin }: InvoiceLineItemsPro
                   <td colSpan={6} style={{ padding: "12px 14px" }}>
                     <form
                       action={(formData) => {
-                        if (item.type === "LABOR") handleSaveLabor(item.id, formData);
+                        if (item.type !== "PART") handleSaveLabor(item.id, formData);
                         else handleSavePart(item.id, formData);
                       }}
                       className="stack"
@@ -164,7 +164,7 @@ export function InvoiceLineItems({ items, status, isAdmin }: InvoiceLineItemsPro
                       >
                         <strong style={{ fontSize: "0.85rem", color: "var(--ink)", display: "inline-flex", alignItems: "center", gap: 6 }}>
                           <Pencil size={13} aria-hidden="true" />
-                          Edit {item.type === "LABOR" ? "Labor / Service Charge" : "Part Line (Admin Adjustment)"}
+                          Edit {item.type === "LABOR" ? "Labor / Service Charge" : item.type === "ITEM" ? "Item" : "Part Line (Admin Adjustment)"}
                         </strong>
 
                         {item.type === "PART" && (
@@ -333,7 +333,7 @@ export function InvoiceLineItems({ items, status, isAdmin }: InvoiceLineItemsPro
                 <td className="number">{money(item.unitCents)}</td>
                 <td className="number" style={{ fontWeight: 600 }}>{money(item.quantity * item.unitCents)}</td>
                 <td className="no-print" style={{ textAlign: "right" }}>
-                  {isDraft && item.type === "LABOR" && (
+                  {isDraft && item.type !== "PART" && (
                     <div className="row" style={{ justifyContent: "flex-end", gap: 6 }}>
                       <button
                         type="button"
@@ -425,7 +425,7 @@ export function InvoiceLineItems({ items, status, isAdmin }: InvoiceLineItemsPro
       </table>
 
       {!items.length && (
-        <div className="empty">Add labor or issue a requested part to create invoice lines.</div>
+        <div className="empty">Add a charge or issue a requested part to create invoice lines.</div>
       )}
     </div>
   );
