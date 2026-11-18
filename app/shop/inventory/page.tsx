@@ -2,6 +2,8 @@ import { PackagePlus, Truck } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
 import { adjustStock, setShopReorderLevel } from "@/app/inventory-actions";
 import { CreatePartForm } from "@/components/create-part-form";
+import { PartSearchForm } from "@/components/part-search-form";
+import { filterParts } from "@/lib/part-filter";
 import { StockTransferModal } from "@/components/stock-transfer-modal";
 import { SubmitButton } from "@/components/submit-button";
 import { requireRole } from "@/lib/auth";
@@ -9,11 +11,14 @@ import { canSetPrices } from "@/lib/sale-rules";
 import { db } from "@/lib/db";
 import { money } from "@/lib/format";
 
-export default async function ShopInventoryPage() {
+export default async function ShopInventoryPage({ searchParams }: { searchParams: Promise<{ q?: string; stock?: string }> }) {
   const user = await requireRole([Role.SHOP_STAFF, Role.FINANCE]);
   const canSetPrice = canSetPrices(user.role);
+  const { q, stock } = await searchParams;
 
   const parts = await db.part.findMany({ orderBy: { name: "asc" } });
+  const shown = filterParts(parts, q, stock, "RETAIL_SHOP");
+  const isFiltered = shown.length !== parts.length;
 
   const totalShelfStock = parts.reduce((sum, p) => sum + p.shopStockQty, 0);
   const totalWorkshopStock = parts.reduce((sum, p) => sum + p.stockQty, 0);
@@ -76,6 +81,8 @@ export default async function ShopInventoryPage() {
           <h2>Retail Shelf Inventory</h2>
           <span className="pill waiting_parts">{lowShelfStock} low stock</span>
         </div>
+        <PartSearchForm q={q} stock={stock} />
+        {isFiltered && <p className="muted" style={{ margin: "0 0 8px", fontSize: "0.8rem" }}>Showing {shown.length} of {parts.length} parts</p>}
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -90,7 +97,7 @@ export default async function ShopInventoryPage() {
               </tr>
             </thead>
             <tbody>
-              {parts.map((part) => {
+              {shown.map((part) => {
                 const isOutOfStock = part.shopStockQty === 0;
                 const isLow = part.shopStockQty <= part.shopReorderLevel;
 
@@ -146,7 +153,7 @@ export default async function ShopInventoryPage() {
               })}
             </tbody>
           </table>
-          {!parts.length && <div className="empty">No parts in the catalog yet.</div>}
+          {!shown.length && <div className="empty">{parts.length ? "No parts match this search." : "No parts in the catalog yet."}</div>}
         </div>
       </section>
 
