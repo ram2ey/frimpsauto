@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Search } from "lucide-react";
 import { Location, Role } from "@/generated/prisma/client";
+import { LiveSearchForm } from "@/components/live-search-form";
 import { decidePartRequest, issuePart } from "@/app/inventory-actions";
 import { ensureInvoice } from "@/app/billing-actions";
 import { CounterSaleModal } from "@/components/counter-sale-modal";
@@ -11,8 +13,34 @@ import { counterSalesTotal, invoiceTotals } from "@/lib/finance-stats";
 
 const INVOICE_LIST_LIMIT = 100;
 
-export default async function Finance() {
+const INVOICE_STATUSES = ["DRAFT", "ISSUED", "PARTIAL", "PAID"] as const;
+type InvoiceStatusFilter = (typeof INVOICE_STATUSES)[number];
+
+export default async function Finance({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
   await requireRole([Role.FINANCE]);
+  const { q: rawQ, status: rawStatus } = await searchParams;
+  const q = (rawQ || "").trim();
+  const status = INVOICE_STATUSES.includes(rawStatus as InvoiceStatusFilter) ? (rawStatus as InvoiceStatusFilter) : undefined;
+  // "12", "#12", "INV-00012" or "00012" match invoice or job number 12.
+  const numberMatch = q.match(/^(?:inv-?|#)?0*(\d{1,9})$/i);
+  const searchNumber = numberMatch ? parseInt(numberMatch[1], 10) : null;
+  const contains = { contains: q, mode: "insensitive" as const };
+  const invoiceWhere = {
+    ...(status ? { status } : {}),
+    ...(q
+      ? {
+          OR: [
+            { job: { customer: { name: contains } } },
+            { job: { customer: { phone: contains } } },
+            { job: { vehicle: { plate: contains } } },
+            { job: { vehicle: { vin: contains } } },
+            ...(searchNumber ? [{ number: searchNumber }, { job: { number: searchNumber } }] : []),
+          ],
+        }
+      : {}),
+  };
+  const isFiltered = Boolean(q || status);
+
   const [requests, invoices, uninvoicedJobs, directSales, parts, totals, directSalesTotal] = await Promise.all([
     db.partRequest.findMany({
       where: { status: { in: ["REQUESTED", "APPROVED"] } },
@@ -20,6 +48,7 @@ export default async function Finance() {
       orderBy: { createdAt: "asc" },
     }),
     db.invoice.findMany({
+      where: invoiceWhere,
       include: { job: { include: { customer: true } }, items: true, payments: true },
       orderBy: { createdAt: "desc" },
       take: INVOICE_LIST_LIMIT,
@@ -260,10 +289,26 @@ export default async function Finance() {
       </section>
 
       {/* Job Invoices */}
-      <section className="card">
+      <section className="card" id="invoices">
         <div className="section-title">
           <h2>Job Invoices</h2>
         </div>
+        <LiveSearchForm className="row wrap mb">
+          <div style={{ flex: "1 1 260px", maxWidth: 380 }}>
+            <label htmlFor="invoice-q">Search customer, phone, plate, invoice or job #</label>
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              <input id="invoice-q" name="q" defaultValue={q} placeholder="e.g. Mensah, 024..., GE-8492, INV-00012" autoComplete="off" style={{ paddingLeft: "36px" }} />
+              <Search size={16} aria-hidden="true" style={{ position: "absolute", left: "12px", color: "var(--muted)", pointerEvents: "none" }} />
+            </div>
+          </div>
+          <div style={{ width: 170 }}>
+            <label htmlFor="invoice-status">Status</label>
+            <select id="invoice-status" name="status" defaultValue={status || ""}>
+              <option value="">All statuses</option>
+              {INVOICE_STATUSES.map(value => <option key={value} value={value}>{value.toLowerCase()}</option>)}
+            </select>
+          </div>
+        </LiveSearchForm>
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -303,8 +348,8 @@ export default async function Finance() {
               })}
             </tbody>
           </table>
-          {!invoices.length && <div className="empty">Invoices will appear when parts or labor are added.</div>}
-          {invoices.length === INVOICE_LIST_LIMIT && <p className="muted" style={{ fontSize: "0.78rem", marginTop: 8 }}>Showing the {INVOICE_LIST_LIMIT} most recent invoices. Totals above include all invoices.</p>}
+          {!invoices.length && <div className="empty">{isFiltered ? "No invoices match this search." : "Invoices will appear when parts or labor are added."}</div>}
+          {invoices.length === INVOICE_LIST_LIMIT && <p className="muted" style={{ fontSize: "0.78rem", marginTop: 8 }}>Showing the {INVOICE_LIST_LIMIT} most recent {isFiltered ? "matching " : ""}invoices. Search to find older ones. Totals above include all invoices.</p>}
         </div>
       </section>
     </main>
