@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
+import { LiveSearchForm } from "@/components/live-search-form";
 import { Pagination } from "@/components/pagination";
 import { VehicleAvatar } from "@/components/vehicle-avatar";
 import { requireUser } from "@/lib/auth";
@@ -15,9 +16,12 @@ export default async function Jobs({
   searchParams: Promise<{ status?: string; q?: string; page?: string }>;
 }) {
   const user = await requireUser();
-  const { status, q, page: pageParam } = await searchParams;
+  const { status, q: rawQ, page: pageParam } = await searchParams;
+  const q = (rawQ || "").trim();
   const page = Math.max(1, parseInt(pageParam || "1", 10) || 1);
   const allowed = ["OPEN", "IN_PROGRESS", "WAITING_PARTS", "COMPLETED"];
+  // "12", "#12" or "00012" also finds job order number 12.
+  const jobNum = /^#?\d+$/.test(q) ? parseInt(q.replace(/^#/, ""), 10) : NaN;
 
   const where = {
     ...(user.role === Role.TECHNICIAN ? { technicianId: user.id } : {}),
@@ -28,8 +32,10 @@ export default async function Jobs({
       ? {
           OR: [
             { customer: { name: { contains: q, mode: "insensitive" as const } } },
+            { customer: { phone: { contains: q, mode: "insensitive" as const } } },
             { vehicle: { plate: { contains: q, mode: "insensitive" as const } } },
             { vehicle: { vin: { contains: q, mode: "insensitive" as const } } },
+            ...(Number.isSafeInteger(jobNum) && jobNum > 0 && jobNum <= 2147483647 ? [{ number: jobNum }] : []),
           ],
         }
       : {}),
@@ -64,10 +70,10 @@ export default async function Jobs({
       </div>
 
       <section className="card">
-        <form className="row wrap mb" action="/jobs" method="GET">
-          <div style={{ width: 260 }}>
-            <label htmlFor="q">Search customer, VIN or plate</label>
-            <input id="q" name="q" defaultValue={q || ""} placeholder="Search jobs..." />
+        <LiveSearchForm className="row wrap mb">
+          <div style={{ width: 300, flex: "0 1 300px" }}>
+            <label htmlFor="q">Search customer, phone, VIN, plate or job #</label>
+            <input id="q" name="q" defaultValue={q || ""} placeholder="Search jobs..." autoComplete="off" />
           </div>
           <div style={{ width: 180 }}>
             <label htmlFor="status">Status</label>
@@ -80,17 +86,7 @@ export default async function Jobs({
               ))}
             </select>
           </div>
-          <div className="row" style={{ alignSelf: "end", gap: 8 }}>
-            <button type="submit" className="btn btn-secondary">
-              Filter
-            </button>
-            {isFiltered && (
-              <Link href="/jobs" className="btn btn-secondary" title="Clear filters">
-                <X size={15} /> Clear
-              </Link>
-            )}
-          </div>
-        </form>
+        </LiveSearchForm>
 
         <div className="table-wrap">
           <table className="table">

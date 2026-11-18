@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
+import { LiveSearchForm } from "@/components/live-search-form";
 import { Pagination } from "@/components/pagination";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -86,7 +87,7 @@ export default async function Customers({
       </div>
 
       <section className="card">
-        <form className="row wrap mb" action="/customers" method="GET">
+        <LiveSearchForm className="row wrap mb">
           <div style={{ width: 360, flex: "1 1 260px" }}>
             <label htmlFor="customer-q">Search customer name, phone, VIN, plate or job #</label>
             <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
@@ -95,6 +96,7 @@ export default async function Customers({
                 name="q"
                 defaultValue={trimmed}
                 placeholder="Search by name, 024..., GE-8492, W205, or #00012..."
+                autoComplete="off"
                 style={{ paddingLeft: "36px" }}
               />
               <Search
@@ -109,17 +111,7 @@ export default async function Customers({
               />
             </div>
           </div>
-          <div className="row" style={{ alignSelf: "end", gap: 8 }}>
-            <button type="submit" className="btn btn-secondary">
-              Search
-            </button>
-            {isFiltered && (
-              <Link href="/customers" className="btn btn-secondary" title="Clear search">
-                <X size={15} /> Clear
-              </Link>
-            )}
-          </div>
-        </form>
+        </LiveSearchForm>
 
         <div className="table-wrap">
           <table className="table">
