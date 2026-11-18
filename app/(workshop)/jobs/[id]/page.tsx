@@ -4,7 +4,7 @@ import { FileText, Plus, ArrowUpRight } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
 import { JobInspection } from "@/components/job-inspection";
 import { JobComplaint } from "@/components/job-complaint";
-import { JobIssues } from "@/components/job-issues";
+import { JobIssues, JobIssuesPrint } from "@/components/job-issues";
 import { JobTabs } from "@/components/job-tabs";
 import { JobCompleteModal } from "@/components/job-complete-modal";
 import { PrintButton } from "@/components/print-button";
@@ -398,6 +398,8 @@ export default async function JobDetail({
           notFixedIssues={job.issues.filter(issue => issue.status && issue.status !== "FIXED").length}
         />
       )}
+
+      <JobIssuesPrint issues={job.issues} workNotes={job.workNotes} />
 
       {/* Printable Workshop Sign-off Section */}
       <div className="print-only card mt" style={{ marginTop: 24, fontSize: "8pt" }}>

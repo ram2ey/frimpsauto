@@ -28,7 +28,7 @@ export function JobIssues({ jobId, issues, workNotes, canEditList, canReport }: 
   const answered = issues.filter(issue => issue.status).length;
 
   return (
-    <section className="card mb">
+    <section className="card mb no-print">
       <div className="section-title">
         <h2>Issues & technician report</h2>
         {issues.length > 0 && (
@@ -166,6 +166,57 @@ export function JobIssues({ jobId, issues, workNotes, canEditList, canReport }: 
             </div>
           )}
         </>
+      )}
+    </section>
+  );
+}
+
+/** Always printed on the job sheet, whichever tab is open. Unreported issues get tick boxes to fill in by hand. */
+export function JobIssuesPrint({ issues, workNotes }: { issues: Issue[]; workNotes: string | null }) {
+  if (!issues.length && !workNotes) return null;
+  return (
+    <section className="print-only card mt">
+      <h2 style={{ fontSize: "10pt", margin: "0 0 6px" }}>Issues & technician report</h2>
+      {issues.length > 0 && (
+        <table className="table">
+          <thead>
+            <tr>
+              <th scope="col" style={{ width: 24 }}>#</th>
+              <th scope="col">Issue</th>
+              <th scope="col" style={{ width: 170 }}>Result</th>
+              <th scope="col">Technician note</th>
+            </tr>
+          </thead>
+          <tbody>
+            {issues.map((issue, index) => (
+              <tr key={issue.id}>
+                <td>{index + 1}</td>
+                <td>{issue.label}</td>
+                <td>
+                  {issue.status ? (
+                    <strong>{STATUS_LABEL[issue.status]}</strong>
+                  ) : (
+                    <span style={{ whiteSpace: "nowrap" }}>☐ Fixed ☐ Partly ☐ Not fixed</span>
+                  )}
+                </td>
+                <td>
+                  {issue.note || (issue.status ? "—" : "")}
+                  {issue.reportedBy && issue.reportedAt && (
+                    <small style={{ display: "block", color: "#6b7280" }}>
+                      {issue.reportedBy.name} · {date(issue.reportedAt)}
+                    </small>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {workNotes && (
+        <div style={{ marginTop: 8 }}>
+          <strong>Other notes</strong>
+          <p style={{ whiteSpace: "pre-wrap", margin: "2px 0 0" }}>{workNotes}</p>
+        </div>
       )}
     </section>
   );
