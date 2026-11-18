@@ -163,7 +163,11 @@ export async function createInvoicePdf(invoice: InvoiceForPdf, business: Busines
   y += 39;
   const methods = total - paid > 0 ? paymentMethods(business) : [];
   if (methods.length) {
-    const rows = Math.max(...methods.map(method => method.lines.length));
+    // Long values (e.g. two account holder names) wrap within their column.
+    // Alternative names written "A / B" break at the slash first.
+    const wrapValue = (value: string) => value.split(/\s+\/\s+/).flatMap((part, index, parts) => wrap(index < parts.length - 1 ? `${part} /` : part, 30));
+    const laidOut = methods.slice(0, 2).map(method => method.lines.map(entry => ({ ...entry, wrapped: wrapValue(entry.value) })));
+    const rows = Math.max(...laidOut.map(lines => lines.reduce((sum, entry) => sum + entry.wrapped.length, 0)));
     const height = 50 + rows * 13;
     room(height + 10);
     rect(42, y - 12, 511, height, "0.94 0.97 0.99");
@@ -171,9 +175,13 @@ export async function createInvoicePdf(invoice: InvoiceForPdf, business: Busines
     methods.slice(0, 2).forEach((method, column) => {
       const x = column === 0 ? 54 : 305;
       write(method.title, x, y + 21, 9, true);
-      method.lines.forEach((entry, index) => {
-        write(`${entry.label}:`, x, y + 36 + index * 13, 8, false, "0.36 0.46 0.54");
-        write(entry.value, x + 82, y + 36 + index * 13, 9, entry.label.toLowerCase().includes("number"));
+      let row = 0;
+      laidOut[column].forEach(entry => {
+        write(`${entry.label}:`, x, y + 36 + row * 13, 8, false, "0.36 0.46 0.54");
+        entry.wrapped.forEach(part => {
+          write(part, x + 82, y + 36 + row * 13, 9, entry.label.toLowerCase().includes("number"));
+          row++;
+        });
       });
     });
     y += height;
