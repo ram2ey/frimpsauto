@@ -1,5 +1,6 @@
 import { login } from "@/app/auth-actions";
 import { BrandLogo } from "@/components/brand-logo";
+import { PasswordInput } from "@/components/password-input";
 import { SubmitButton } from "@/components/submit-button";
 
 export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string; wait?: string }> }) {
@@ -18,7 +19,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
       {error && <div className="notice">{error}</div>}
       <form action={login} className="stack">
         <div><label htmlFor="username">Username</label><input id="username" name="username" required autoComplete="username" /></div>
-        <div><label htmlFor="password">Password</label><input id="password" type="password" name="password" required autoComplete="current-password" /></div>
+        <div><label htmlFor="password">Password</label><PasswordInput id="password" name="password" required autoComplete="current-password" /></div>
         <SubmitButton pendingLabel="Signing in...">Sign in</SubmitButton>
       </form>
     </div></section>

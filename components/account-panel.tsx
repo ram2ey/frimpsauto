@@ -1,4 +1,5 @@
 import { changePassword, changeUsername } from "@/app/auth-actions";
+import { PasswordInput } from "@/components/password-input";
 import { SubmitButton } from "@/components/submit-button";
 import { MIN_PASSWORD_LENGTH } from "@/lib/password";
 
@@ -13,16 +14,16 @@ export function AccountPanel({ user, notices, returnTo }: { user: AccountUser; n
     {(changed === "1" || updated === "1") && <div className="notice success">{changed === "1" ? "Password changed." : "Username updated."}</div>}
     <div className="grid two"><section className="card"><h2>Change password</h2><form action={changePassword} className="stack">
       <input type="hidden" name="returnTo" value={returnTo} />
-      <div><label htmlFor="currentPassword">Current password</label><input id="currentPassword" name="currentPassword" type="password" required autoComplete="current-password"/></div>
-      <div><label htmlFor="newPassword">New password</label><input id="newPassword" name="newPassword" type="password" minLength={MIN_PASSWORD_LENGTH} maxLength={72} required autoComplete="new-password"/></div>
-      <div><label htmlFor="confirmPassword">Confirm new password</label><input id="confirmPassword" name="confirmPassword" type="password" minLength={MIN_PASSWORD_LENGTH} maxLength={72} required autoComplete="new-password"/></div>
+      <div><label htmlFor="currentPassword">Current password</label><PasswordInput id="currentPassword" name="currentPassword" required autoComplete="current-password"/></div>
+      <div><label htmlFor="newPassword">New password</label><PasswordInput id="newPassword" name="newPassword" minLength={MIN_PASSWORD_LENGTH} maxLength={72} required autoComplete="new-password"/></div>
+      <div><label htmlFor="confirmPassword">Confirm new password</label><PasswordInput id="confirmPassword" name="confirmPassword" minLength={MIN_PASSWORD_LENGTH} maxLength={72} required autoComplete="new-password"/></div>
       <p className="muted" style={{ fontSize: "0.78rem" }}>At least {MIN_PASSWORD_LENGTH} characters.</p>
       <SubmitButton pendingLabel="Saving password..." style={{ alignSelf: "start" }}>Save password</SubmitButton>
     </form></section>
     <section className="card"><h2>Username</h2><form action={changeUsername} className="stack">
       <input type="hidden" name="returnTo" value={returnTo} />
       <div><label htmlFor="username">Username</label><input id="username" name="username" defaultValue={user.username} minLength={3} maxLength={32} pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,31}" required autoComplete="username"/></div>
-      <div><label htmlFor="usernamePassword">Current password</label><input id="usernamePassword" name="currentPassword" type="password" required autoComplete="current-password"/></div>
+      <div><label htmlFor="usernamePassword">Current password</label><PasswordInput id="usernamePassword" name="currentPassword" required autoComplete="current-password"/></div>
       <SubmitButton className="btn btn-secondary" pendingLabel="Saving username..." style={{ alignSelf: "start" }}>Save username</SubmitButton>
     </form></section></div>
   </main>;
