@@ -20,11 +20,13 @@ interface JobIssuesProps {
   workNotes: string | null;
   /** Supervisor/admin on an open job: may add issues and remove unanswered ones. */
   canManageList: boolean;
-  /** Assigned technician on an open job: the only person who fills in the report. */
+  /** Assigned technician or supervisor/admin on an open job: may set results and issue notes. */
   canReport: boolean;
+  /** Assigned technician only: may write the "Other notes" box. */
+  canEditWorkNotes: boolean;
 }
 
-export function JobIssues({ jobId, issues, workNotes, canManageList, canReport }: JobIssuesProps) {
+export function JobIssues({ jobId, issues, workNotes, canManageList, canReport, canEditWorkNotes }: JobIssuesProps) {
   const answered = issues.filter(issue => issue.status).length;
 
   return (
@@ -48,7 +50,8 @@ export function JobIssues({ jobId, issues, workNotes, canManageList, canReport }
                 <tr>
                   <th scope="col">Issue</th>
                   <th scope="col" style={{ width: 160 }}>Result</th>
-                  <th scope="col">Your note</th>
+                  <th scope="col">Note</th>
+                  {canManageList && <th scope="col" style={{ width: 90 }} aria-label="Actions" />}
                 </tr>
               </thead>
               <tbody>
@@ -79,21 +82,45 @@ export function JobIssues({ jobId, issues, workNotes, canManageList, canReport }
                         aria-label={`Note for ${issue.label}`}
                       />
                     </td>
+                    {canManageList && (
+                      <td style={{ textAlign: "right" }}>
+                        {!issue.status && !issue.note && (
+                          <SubmitButton
+                            formAction={removeIssue.bind(null, issue.id)}
+                            formNoValidate
+                            className="btn btn-secondary btn-small"
+                            pendingLabel="..."
+                            title="Remove this issue (only possible before it has a result or note)"
+                          >
+                            Remove
+                          </SubmitButton>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <div>
-            <label htmlFor="workNotes">Other notes (optional)</label>
-            <textarea
-              id="workNotes"
-              name="workNotes"
-              defaultValue={workNotes || ""}
-              maxLength={5000}
-              placeholder="Anything else found or done, e.g. other faults noticed during the work"
-            />
-          </div>
+          {canEditWorkNotes ? (
+            <div>
+              <label htmlFor="workNotes">Other notes (optional)</label>
+              <textarea
+                id="workNotes"
+                name="workNotes"
+                defaultValue={workNotes || ""}
+                maxLength={5000}
+                placeholder="Anything else found or done, e.g. other faults noticed during the work"
+              />
+            </div>
+          ) : (
+            <div>
+              <strong style={{ fontSize: "0.85rem" }}>Other notes from the technician</strong>
+              <p className={workNotes ? undefined : "muted"} style={{ whiteSpace: "pre-wrap", margin: "4px 0 0" }}>
+                {workNotes || "None yet. Only the assigned technician can write these."}
+              </p>
+            </div>
+          )}
           <SubmitButton pendingLabel="Saving report..." style={{ alignSelf: "start" }}>
             Save report
           </SubmitButton>
@@ -150,11 +177,6 @@ export function JobIssues({ jobId, issues, workNotes, canManageList, canReport }
               <strong style={{ fontSize: "0.85rem" }}>Other notes from the technician</strong>
               <p style={{ whiteSpace: "pre-wrap", margin: "4px 0 0" }}>{workNotes}</p>
             </div>
-          )}
-          {canManageList && issues.length > 0 && (
-            <p className="hint" style={{ margin: "8px 0 0" }}>
-              Only the assigned technician can fill in results and notes.
-            </p>
           )}
         </>
       )}

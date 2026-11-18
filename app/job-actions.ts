@@ -169,15 +169,18 @@ export async function removeIssue(issueId: string) {
   });
 }
 
-/** Only the assigned technician records what was and wasn't fixed. */
+/**
+ * Assigned technician (or supervisor/admin) records what was and wasn't fixed.
+ * The technician's "Other notes" can only be written by the technician.
+ */
 export async function saveIssueReport(jobId: string, form: FormData) {
   return formAction(async () => {
-    const actor = await assertRole([Role.TECHNICIAN]);
-    if (actor.role !== Role.TECHNICIAN) throw new UserError("Only the assigned technician can fill in the report.");
+    const actor = await assertRole([Role.SUPERVISOR, Role.TECHNICIAN]);
+    const isTechnician = actor.role === Role.TECHNICIAN;
     const workNotes = String(form.get("workNotes") || "").trim().slice(0, 5000) || null;
     await serializable(async tx => {
       const job = await tx.job.findUnique({ where: { id: jobId }, include: { issues: true } });
-      if (!job || job.technicianId !== actor.id) throw new UserError("Only the assigned technician can fill in the report.");
+      if (!job || (isTechnician && job.technicianId !== actor.id)) throw new UserError("Job not found.");
       if (job.status === JobStatus.COMPLETED) throw new UserError("This job is closed.");
       const now = new Date();
       for (const issue of job.issues) {
@@ -188,7 +191,7 @@ export async function saveIssueReport(jobId: string, form: FormData) {
         if (status === issue.status && note === issue.note) continue;
         await tx.jobIssue.update({ where: { id: issue.id }, data: { status, note, reportedById: actor.id, reportedAt: now } });
       }
-      if (workNotes !== job.workNotes) await tx.job.update({ where: { id: jobId }, data: { workNotes } });
+      if (isTechnician && workNotes !== job.workNotes) await tx.job.update({ where: { id: jobId }, data: { workNotes } });
     });
     revalidatePath(`/jobs/${jobId}`);
   });
