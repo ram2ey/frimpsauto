@@ -122,13 +122,13 @@ async function main() {
   const intake = await page("/jobs/new", supervisorCookie);
   const jobResponse = await submit("/jobs/new", formFor(intake, "Create job order"), {
     customerName: `Smoke Customer ${suffix}`, customerPhone: "0000000000", year: 1984,
-    modelName: "300 D", plate: `TEST${suffix}`, complaint: "Rough idle and brake inspection",
+    modelName: "300 D", plate: `TEST${suffix}`, issues: "Rough idle\nBrake inspection",
     technicianId: technician.id, templateId: template.rows[0].id,
   }, supervisorCookie);
   assert.equal(jobResponse.status, 303, `Create job: ${jobResponse.status}`);
   const jobPath = new URL(jobResponse.headers.get("location"), base).pathname;
   const jobId = jobPath.split("/").at(-1);
-  assert.match(await page(jobPath, technicianCookie), /Rough idle and brake inspection/);
+  assert.match(await page(jobPath, technicianCookie), /Brake inspection/);
   assert.equal((await get("/finance", technicianCookie)).status, 307);
   assert.equal((await get("/settings", financeCookie)).status, 307);
   assert.equal((await get(jobPath, otherTechnicianCookie)).status, 307);

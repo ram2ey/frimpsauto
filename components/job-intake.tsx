@@ -651,15 +651,18 @@ export function JobIntake({
         </div>
         <div className="form-grid">
           <div className="field field-wide">
-            <label htmlFor="complaint">Customer complaint & service requested</label>
+            <label htmlFor="issues">Issues to fix</label>
             <textarea
-              id="complaint"
-              name="complaint"
+              id="issues"
+              name="issues"
               required
-              maxLength={3000}
-              placeholder="Describe customer complaints, symptoms, dashboard warning lights, or requested maintenance..."
-              style={{ minHeight: "100px" }}
+              maxLength={6000}
+              placeholder={"Brake squeal front left\nAC not cooling\nCheck engine light on\nFull service"}
+              style={{ minHeight: "110px" }}
             />
+            <small className="muted" style={{ display: "block", marginTop: 6, fontSize: "0.72rem" }}>
+              One issue per line. Each line becomes an item the technician marks fixed or not fixed. You can add more later.
+            </small>
           </div>
 
           <div className="field">

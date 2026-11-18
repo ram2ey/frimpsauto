@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { JobStatus, Role } from "@/generated/prisma/client";
-import { formAction, resultAction, serializable } from "@/lib/action";
+import { formAction, serializable } from "@/lib/action";
 import { assertRole } from "@/lib/auth";
 import { UserError } from "@/lib/errors";
 import { db } from "@/lib/db";
@@ -13,10 +13,33 @@ import { deletePrivateObject, putPrivateObject, readVehiclePhoto } from "@/lib/s
 
 const editors = [Role.SUPERVISOR];
 
+const MAX_ISSUES = 50;
+const issueKey = (label: string) => label.toLowerCase().replace(/\s+/g, " ").trim();
+
+/** Splits free text into issues: one per line, list markers stripped, blanks and repeats dropped. */
+function parseIssueLines(value: FormDataEntryValue | null) {
+  const seen = new Set<string>();
+  const labels = String(value || "")
+    .split(/\r?\n/)
+    .map(line => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
+    .filter(label => {
+      const key = issueKey(label);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  if (labels.some(label => label.length > 300)) throw new UserError("Each issue must be 300 characters or fewer.");
+  return labels;
+}
+
 export async function createJob(form: FormData) {
   return formAction(async () => {
     const actor = await assertRole(editors);
-    const complaint = text(form.get("complaint"), "Customer complaint", 3000);
+    const issues = parseIssueLines(form.get("issues"));
+    if (!issues.length) throw new UserError("List at least one issue for the technician, one per line.");
+    if (issues.length > MAX_ISSUES) throw new UserError(`A job can list at most ${MAX_ISSUES} issues.`);
+    // The job's description keeps the original list, so customer history search still finds it.
+    const complaint = issues.join("\n").slice(0, 3000);
     const technicianId = String(form.get("technicianId") || "") || null;
     if (technicianId) {
       const tech = await db.user.findUnique({ where: { id: technicianId } });
@@ -79,6 +102,7 @@ export async function createJob(form: FormData) {
         customerId, vehicleId, complaint, createdById: actor.id, technicianId,
         status: technicianId ? JobStatus.IN_PROGRESS : JobStatus.OPEN,
         checklist: template ? { create: template.items.map(item => ({ label: item.label, sortOrder: item.sortOrder })) } : undefined,
+        issues: { create: issues.map((label, sortOrder) => ({ label, sortOrder })) },
       } });
     });
 
@@ -116,9 +140,6 @@ export async function updateFindings(jobId: string, form: FormData) {
 }
 
 const ISSUE_STATUSES = ["FIXED", "PARTIAL", "NOT_FIXED"] as const;
-const issueKey = (label: string) => label.toLowerCase().replace(/\s+/g, " ").trim();
-
-const MAX_ISSUES = 50;
 
 /**
  * Supervisor adds issues as free text, one per line. Existing issues are never changed
@@ -127,12 +148,8 @@ const MAX_ISSUES = 50;
 export async function addIssues(jobId: string, form: FormData) {
   return formAction(async () => {
     await assertRole(editors);
-    const labels = String(form.get("issues") || "")
-      .split(/\r?\n/)
-      .map(line => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
-      .filter(Boolean);
+    const labels = parseIssueLines(form.get("issues"));
     if (!labels.length) throw new UserError("Type at least one issue, one per line.");
-    if (labels.some(label => label.length > 300)) throw new UserError("Each issue must be 300 characters or fewer.");
 
     await serializable(async tx => {
       const job = await tx.job.findUnique({ where: { id: jobId }, include: { issues: true } });
@@ -194,25 +211,6 @@ export async function saveIssueReport(jobId: string, form: FormData) {
       if (isTechnician && workNotes !== job.workNotes) await tx.job.update({ where: { id: jobId }, data: { workNotes } });
     });
     revalidatePath(`/jobs/${jobId}`);
-  });
-}
-
-export async function updateComplaint(jobId: string, form: FormData) {
-  return resultAction(async () => {
-    await assertRole(editors);
-    const complaint = text(form.get("complaint"), "Customer complaint", 3000);
-    const job = await db.job.findUnique({ where: { id: jobId } });
-    if (!job) throw new UserError("Job not found.");
-    if (job.status === JobStatus.COMPLETED) {
-      throw new UserError("Customer complaint cannot be edited after job completion.");
-    }
-    await db.job.update({
-      where: { id: jobId },
-      data: { complaint },
-    });
-    revalidatePath(`/jobs/${jobId}`);
-    revalidatePath("/jobs");
-    revalidatePath(`/customers/${job.customerId}`);
   });
 }
 

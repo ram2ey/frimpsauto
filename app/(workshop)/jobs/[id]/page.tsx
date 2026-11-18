@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { FileText, Plus, ArrowUpRight } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
 import { JobInspection } from "@/components/job-inspection";
-import { JobComplaint } from "@/components/job-complaint";
 import { JobIssues, JobIssuesPrint } from "@/components/job-issues";
 import { JobTabs } from "@/components/job-tabs";
 import { JobCompleteModal } from "@/components/job-complete-modal";
@@ -94,7 +93,7 @@ export default async function JobDetail({
         <div>
           <div className="eyebrow">Workshop / Job orders</div>
           <h1>Job #{String(job.number).padStart(5, "0")}</h1>
-          <p className="subtitle">Opened {date(job.createdAt)} · {job.customer.name}</p>
+          <p className="subtitle">Opened {date(job.createdAt)}{job.closedAt ? ` · Closed ${date(job.closedAt)}` : ""} · {job.customer.name}</p>
         </div>
         <div className="row wrap">
           <span className={`pill ${job.status.toLowerCase()}`}>{job.status.replaceAll("_", " ").toLowerCase()}</span>
@@ -141,7 +140,35 @@ export default async function JobDetail({
         }}
         overview={
           <>
-          <div className="grid two mb">
+          <JobIssues
+            jobId={id}
+            issues={job.issues}
+            workNotes={job.workNotes}
+            legacyNotes={job.issues.length ? null : job.complaint}
+            canManageList={edit}
+            canReport={canReport}
+            canEditWorkNotes={canEditWorkNotes}
+            technician={
+              edit ? (
+                <form action={assignTechnician.bind(null, id)} className="inline-form">
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <label htmlFor="technicianId">Assigned technician</label>
+                    <select id="technicianId" name="technicianId" defaultValue={job.technicianId || ""}>
+                      <option value="">Unassigned</option>
+                      {technicians.map(tech => <option key={tech.id} value={tech.id}>{tech.name}</option>)}
+                    </select>
+                  </div>
+                  <SubmitButton className="btn btn-secondary" pendingLabel="Saving...">Save</SubmitButton>
+                </form>
+              ) : (
+                <p style={{ margin: 0 }}>
+                  <span className="muted">Assigned technician: </span>
+                  <strong>{job.technician?.name || "Unassigned"}</strong>
+                </p>
+              )
+            }
+          />
+          <div className="mb">
             <section className="card">
               <div className="section-title">
                 <h2>Customer & vehicle</h2>
@@ -160,37 +187,7 @@ export default async function JobDetail({
                 <Link className="text-link" href={`/customers/${job.customerId}`}>View customer profile & other vehicles <ArrowUpRight size={13} aria-hidden="true" /></Link>
               </div>
             </section>
-
-            <section className="card">
-              <div className="section-title"><h2>Job details</h2></div>
-              <JobComplaint jobId={id} complaint={job.complaint} editable={edit} />
-              <div className="divider" />
-              <dl className="detail-list">
-                <dt>Technician</dt><dd>{job.technician?.name || "Unassigned"}</dd>
-                <dt>Closed</dt><dd>{date(job.closedAt)}</dd>
-              </dl>
-              {edit && (
-                <form action={assignTechnician.bind(null, id)} className="inline-form mt">
-                  <div style={{ flex: 1 }}>
-                    <label htmlFor="technicianId">Assign technician</label>
-                    <select id="technicianId" name="technicianId" defaultValue={job.technicianId || ""}>
-                      <option value="">Unassigned</option>
-                      {technicians.map(tech => <option key={tech.id} value={tech.id}>{tech.name}</option>)}
-                    </select>
-                  </div>
-                  <SubmitButton className="btn btn-secondary" pendingLabel="Saving...">Save</SubmitButton>
-                </form>
-              )}
-            </section>
           </div>
-          <JobIssues
-            jobId={id}
-            issues={job.issues}
-            workNotes={job.workNotes}
-            canManageList={edit}
-            canReport={canReport}
-            canEditWorkNotes={canEditWorkNotes}
-          />
           </>
         }
         checklist={
@@ -402,7 +399,7 @@ export default async function JobDetail({
         />
       )}
 
-      <JobIssuesPrint issues={job.issues} workNotes={job.workNotes} />
+      <JobIssuesPrint issues={job.issues} workNotes={job.workNotes} legacyNotes={job.issues.length ? null : job.complaint} />
 
       {/* Printable Workshop Sign-off Section */}
       <div className="print-only card mt" style={{ marginTop: 24, fontSize: "8pt" }}>

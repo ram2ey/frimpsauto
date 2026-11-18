@@ -24,9 +24,13 @@ interface JobIssuesProps {
   canReport: boolean;
   /** Assigned technician only: may write the "Other notes" box. */
   canEditWorkNotes: boolean;
+  /** Free-text job description from jobs created before issue lists existed. */
+  legacyNotes?: string | null;
+  /** Technician assignment control (supervisor) or name (everyone else). */
+  technician?: React.ReactNode;
 }
 
-export function JobIssues({ jobId, issues, workNotes, canManageList, canReport, canEditWorkNotes }: JobIssuesProps) {
+export function JobIssues({ jobId, issues, workNotes, canManageList, canReport, canEditWorkNotes, legacyNotes, technician }: JobIssuesProps) {
   const answered = issues.filter(issue => issue.status).length;
 
   return (
@@ -39,6 +43,15 @@ export function JobIssues({ jobId, issues, workNotes, canManageList, canReport, 
           </span>
         )}
       </div>
+
+      {technician && <div className="mb">{technician}</div>}
+
+      {legacyNotes && (
+        <div className="mb">
+          <strong style={{ fontSize: "0.85rem" }}>Job notes</strong>
+          <p style={{ whiteSpace: "pre-wrap", margin: "4px 0 0" }}>{legacyNotes}</p>
+        </div>
+      )}
 
       {!issues.length ? (
         <p className="muted">{canManageList ? "No issues listed yet. Add them below for the technician." : "The supervisor has not listed any issues for this job yet."}</p>
@@ -206,11 +219,12 @@ export function JobIssues({ jobId, issues, workNotes, canManageList, canReport, 
 }
 
 /** Always printed on the job sheet, whichever tab is open. Unreported issues get tick boxes to fill in by hand. */
-export function JobIssuesPrint({ issues, workNotes }: { issues: Issue[]; workNotes: string | null }) {
-  if (!issues.length && !workNotes) return null;
+export function JobIssuesPrint({ issues, workNotes, legacyNotes }: { issues: Issue[]; workNotes: string | null; legacyNotes?: string | null }) {
+  if (!issues.length && !workNotes && !legacyNotes) return null;
   return (
     <section className="print-only card mt">
       <h2 style={{ fontSize: "10pt", margin: "0 0 6px" }}>Issues & technician report</h2>
+      {legacyNotes && <p style={{ whiteSpace: "pre-wrap", margin: "0 0 6px" }}>{legacyNotes}</p>}
       {issues.length > 0 && (
         <table className="table">
           <thead>
