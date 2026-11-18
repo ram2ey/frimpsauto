@@ -118,48 +118,66 @@ export async function updateFindings(jobId: string, form: FormData) {
 const ISSUE_STATUSES = ["FIXED", "PARTIAL", "NOT_FIXED"] as const;
 const issueKey = (label: string) => label.toLowerCase().replace(/\s+/g, " ").trim();
 
+const MAX_ISSUES = 50;
+
 /**
- * Supervisor saves the issue list as free text, one issue per line. Lines that are
- * unchanged keep the technician's answers; new lines become new unanswered issues;
- * removed lines are deleted.
+ * Supervisor adds issues as free text, one per line. Existing issues are never changed
+ * here, so the technician's answers are always kept. Lines already on the list are skipped.
  */
-export async function saveIssues(jobId: string, form: FormData) {
+export async function addIssues(jobId: string, form: FormData) {
   return formAction(async () => {
     await assertRole(editors);
     const labels = String(form.get("issues") || "")
       .split(/\r?\n/)
       .map(line => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
       .filter(Boolean);
-    if (labels.length > 50) throw new UserError("A job can list at most 50 issues.");
+    if (!labels.length) throw new UserError("Type at least one issue, one per line.");
     if (labels.some(label => label.length > 300)) throw new UserError("Each issue must be 300 characters or fewer.");
 
     await serializable(async tx => {
-      const job = await tx.job.findUnique({ where: { id: jobId }, include: { issues: { orderBy: { sortOrder: "asc" } } } });
+      const job = await tx.job.findUnique({ where: { id: jobId }, include: { issues: true } });
       if (!job || job.status === JobStatus.COMPLETED) throw new UserError("This job is closed.");
-      const unmatched = [...job.issues];
-      const keep: { id: string; label: string; sortOrder: number }[] = [];
-      const create: { jobId: string; label: string; sortOrder: number }[] = [];
-      labels.forEach((label, sortOrder) => {
-        const index = unmatched.findIndex(issue => issueKey(issue.label) === issueKey(label));
-        if (index >= 0) keep.push({ id: unmatched.splice(index, 1)[0].id, label, sortOrder });
-        else create.push({ jobId, label, sortOrder });
+      const seen = new Set(job.issues.map(issue => issueKey(issue.label)));
+      const fresh = labels.filter(label => {
+        const key = issueKey(label);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
       });
-      if (unmatched.length) await tx.jobIssue.deleteMany({ where: { id: { in: unmatched.map(issue => issue.id) } } });
-      for (const issue of keep) await tx.jobIssue.update({ where: { id: issue.id }, data: { label: issue.label, sortOrder: issue.sortOrder } });
-      if (create.length) await tx.jobIssue.createMany({ data: create });
+      if (!fresh.length) throw new UserError("Those issues are already on the list.");
+      if (job.issues.length + fresh.length > MAX_ISSUES) throw new UserError(`A job can list at most ${MAX_ISSUES} issues.`);
+      const start = job.issues.reduce((max, issue) => Math.max(max, issue.sortOrder + 1), 0);
+      await tx.jobIssue.createMany({ data: fresh.map((label, index) => ({ jobId, label, sortOrder: start + index })) });
     });
     revalidatePath(`/jobs/${jobId}`);
   });
 }
 
-/** Assigned technician (or supervisor/admin) records what was and wasn't fixed. */
+/** Supervisor removes an issue, but only before the technician has reported on it. */
+export async function removeIssue(issueId: string) {
+  return formAction(async () => {
+    await assertRole(editors);
+    const jobId = await serializable(async tx => {
+      const issue = await tx.jobIssue.findUnique({ where: { id: issueId }, include: { job: true } });
+      if (!issue) throw new UserError("That issue no longer exists.");
+      if (issue.job.status === JobStatus.COMPLETED) throw new UserError("This job is closed.");
+      if (issue.status || issue.note) throw new UserError("The technician has already reported on this issue, so it can't be removed.");
+      await tx.jobIssue.delete({ where: { id: issueId } });
+      return issue.jobId;
+    });
+    revalidatePath(`/jobs/${jobId}`);
+  });
+}
+
+/** Only the assigned technician records what was and wasn't fixed. */
 export async function saveIssueReport(jobId: string, form: FormData) {
   return formAction(async () => {
-    const actor = await assertRole([Role.SUPERVISOR, Role.TECHNICIAN]);
+    const actor = await assertRole([Role.TECHNICIAN]);
+    if (actor.role !== Role.TECHNICIAN) throw new UserError("Only the assigned technician can fill in the report.");
     const workNotes = String(form.get("workNotes") || "").trim().slice(0, 5000) || null;
     await serializable(async tx => {
       const job = await tx.job.findUnique({ where: { id: jobId }, include: { issues: true } });
-      if (!job || (actor.role === Role.TECHNICIAN && job.technicianId !== actor.id)) throw new UserError("Job not found.");
+      if (!job || job.technicianId !== actor.id) throw new UserError("Only the assigned technician can fill in the report.");
       if (job.status === JobStatus.COMPLETED) throw new UserError("This job is closed.");
       const now = new Date();
       for (const issue of job.issues) {

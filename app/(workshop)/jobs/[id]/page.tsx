@@ -43,8 +43,8 @@ export default async function JobDetail({
   if (!job) notFound();
 
   const edit = (user.role === Role.SUPERVISOR || user.role === Role.ADMIN) && job.status !== "COMPLETED";
-  // canViewJob already limits technicians to their own assigned jobs.
-  const canReport = job.status !== "COMPLETED" && (edit || user.role === Role.TECHNICIAN);
+  // Only the technician fills in the report; canViewJob already limits technicians to their own jobs.
+  const canReport = job.status !== "COMPLETED" && user.role === Role.TECHNICIAN;
   const [technicians, parts, previousJob] = await Promise.all([
     edit ? db.user.findMany({ where: { role: Role.TECHNICIAN, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
     edit ? db.part.findMany({ where: { active: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
@@ -185,7 +185,7 @@ export default async function JobDetail({
             jobId={id}
             issues={job.issues}
             workNotes={job.workNotes}
-            canEditList={edit}
+            canManageList={edit}
             canReport={canReport}
           />
           </>

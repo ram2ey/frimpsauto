@@ -1,4 +1,4 @@
-import { saveIssueReport, saveIssues } from "@/app/job-actions";
+import { addIssues, removeIssue, saveIssueReport } from "@/app/job-actions";
 import { SubmitButton } from "@/components/submit-button";
 import { date } from "@/lib/format";
 
@@ -18,13 +18,13 @@ interface JobIssuesProps {
   jobId: string;
   issues: Issue[];
   workNotes: string | null;
-  /** Supervisor/admin on an open job: may edit the issue list. */
-  canEditList: boolean;
-  /** Assigned technician or supervisor/admin on an open job: may fill in the report. */
+  /** Supervisor/admin on an open job: may add issues and remove unanswered ones. */
+  canManageList: boolean;
+  /** Assigned technician on an open job: the only person who fills in the report. */
   canReport: boolean;
 }
 
-export function JobIssues({ jobId, issues, workNotes, canEditList, canReport }: JobIssuesProps) {
+export function JobIssues({ jobId, issues, workNotes, canManageList, canReport }: JobIssuesProps) {
   const answered = issues.filter(issue => issue.status).length;
 
   return (
@@ -38,34 +38,8 @@ export function JobIssues({ jobId, issues, workNotes, canEditList, canReport }: 
         )}
       </div>
 
-      {canEditList && (
-        <details open={!issues.length} className="mb">
-          <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: "0.85rem" }}>
-            {issues.length ? "Edit issue list" : "Add issues for the technician"}
-          </summary>
-          <form action={saveIssues.bind(null, jobId)} className="stack mt">
-            <div>
-              <label htmlFor="issues">Issues to fix</label>
-              <textarea
-                id="issues"
-                name="issues"
-                rows={Math.max(4, issues.length + 1)}
-                defaultValue={issues.map(issue => issue.label).join("\n")}
-                placeholder={"Brake squeal front left\nAC not cooling\nCheck engine light on"}
-              />
-              <p className="hint" style={{ margin: "4px 0 0" }}>
-                One issue per line. Each line becomes an item the technician reports on. Unchanged lines keep their report.
-              </p>
-            </div>
-            <SubmitButton className="btn btn-secondary" pendingLabel="Saving issues..." style={{ alignSelf: "start" }}>
-              Save issues
-            </SubmitButton>
-          </form>
-        </details>
-      )}
-
       {!issues.length ? (
-        <p className="muted">{canEditList ? "No issues listed yet." : "The supervisor has not listed any issues for this job yet."}</p>
+        <p className="muted">{canManageList ? "No issues listed yet. Add them below for the technician." : "The supervisor has not listed any issues for this job yet."}</p>
       ) : canReport ? (
         <form action={saveIssueReport.bind(null, jobId)} className="stack">
           <div className="table-wrap">
@@ -74,7 +48,7 @@ export function JobIssues({ jobId, issues, workNotes, canEditList, canReport }: 
                 <tr>
                   <th scope="col">Issue</th>
                   <th scope="col" style={{ width: 160 }}>Result</th>
-                  <th scope="col">Technician note</th>
+                  <th scope="col">Your note</th>
                 </tr>
               </thead>
               <tbody>
@@ -133,6 +107,7 @@ export function JobIssues({ jobId, issues, workNotes, canEditList, canReport }: 
                   <th scope="col">Issue</th>
                   <th scope="col" style={{ width: 130 }}>Result</th>
                   <th scope="col">Technician note</th>
+                  {canManageList && <th scope="col" style={{ width: 90 }} aria-label="Actions" />}
                 </tr>
               </thead>
               <tbody>
@@ -154,6 +129,17 @@ export function JobIssues({ jobId, issues, workNotes, canEditList, canReport }: 
                         </small>
                       )}
                     </td>
+                    {canManageList && (
+                      <td style={{ textAlign: "right" }}>
+                        {!issue.status && !issue.note && (
+                          <form action={removeIssue.bind(null, issue.id)}>
+                            <SubmitButton className="btn btn-secondary btn-small" pendingLabel="..." title="Remove this issue (only possible before the technician reports on it)">
+                              Remove
+                            </SubmitButton>
+                          </form>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -161,11 +147,37 @@ export function JobIssues({ jobId, issues, workNotes, canEditList, canReport }: 
           </div>
           {workNotes && (
             <div className="mt">
-              <strong style={{ fontSize: "0.85rem" }}>Other notes</strong>
+              <strong style={{ fontSize: "0.85rem" }}>Other notes from the technician</strong>
               <p style={{ whiteSpace: "pre-wrap", margin: "4px 0 0" }}>{workNotes}</p>
             </div>
           )}
+          {canManageList && issues.length > 0 && (
+            <p className="hint" style={{ margin: "8px 0 0" }}>
+              Only the assigned technician can fill in results and notes.
+            </p>
+          )}
         </>
+      )}
+
+      {canManageList && (
+        <form action={addIssues.bind(null, jobId)} className="stack mt">
+          <div>
+            <label htmlFor="issues">{issues.length ? "Add more issues" : "Issues to fix"}</label>
+            <textarea
+              id="issues"
+              name="issues"
+              rows={3}
+              required
+              placeholder={"Brake squeal front left\nAC not cooling\nCheck engine light on"}
+            />
+            <p className="hint" style={{ margin: "4px 0 0" }}>
+              One issue per line. New issues are added to the end of the list for the technician.
+            </p>
+          </div>
+          <SubmitButton className="btn btn-secondary" pendingLabel="Adding issues..." style={{ alignSelf: "start" }}>
+            Add issues
+          </SubmitButton>
+        </form>
       )}
     </section>
   );
