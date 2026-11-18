@@ -8,9 +8,12 @@ import { UserError } from "@/lib/errors";
 import { db } from "@/lib/db";
 import { text } from "@/lib/format";
 
+// Supervisors run inspections, so they manage the templates too (admins are always allowed).
+const checklistEditors = [Role.SUPERVISOR];
+
 export async function createTemplate(form: FormData) {
   return formAction(async () => {
-    await assertRole([Role.ADMIN]);
+    await assertRole(checklistEditors);
     const name = text(form.get("name"), "Template name", 120);
     const items = String(form.get("items") || "").split(/\r?\n/).map(value => value.trim()).filter(Boolean);
     if (!items.length || items.length > 100 || items.some(item => item.length > 200)) throw new UserError("Enter 1 to 100 checklist items, each under 200 characters.");
@@ -21,7 +24,7 @@ export async function createTemplate(form: FormData) {
 
 export async function updateTemplate(templateId: string, form: FormData) {
   return formAction(async () => {
-    await assertRole([Role.ADMIN]);
+    await assertRole(checklistEditors);
     const name = text(form.get("name"), "Template name", 120);
     const items = String(form.get("items") || "").split(/\r?\n/).map(value => value.trim()).filter(Boolean);
     if (!items.length || items.length > 100 || items.some(item => item.length > 200)) throw new UserError("Enter 1 to 100 checklist items, each under 200 characters.");
