@@ -4,6 +4,8 @@ import { Location, Role } from "@/generated/prisma/client";
 import { LiveSearchForm } from "@/components/live-search-form";
 import { decidePartRequest, issuePart } from "@/app/inventory-actions";
 import { ensureInvoice } from "@/app/billing-actions";
+import { ensureProforma } from "@/app/proforma-actions";
+import { proformaReference } from "@/lib/invoice-pdf";
 import { CounterSaleModal } from "@/components/counter-sale-modal";
 import { SubmitButton } from "@/components/submit-button";
 import { requireRole } from "@/lib/auth";
@@ -41,7 +43,7 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
   };
   const isFiltered = Boolean(q || status);
 
-  const [requests, invoices, uninvoicedJobs, directSales, parts, totals, directSalesTotal] = await Promise.all([
+  const [requests, invoices, uninvoicedJobs, directSales, parts, totals, directSalesTotal, openProformas, unquotedJobs] = await Promise.all([
     db.partRequest.findMany({
       where: { status: { in: ["REQUESTED", "APPROVED"] } },
       include: { part: true, job: { include: { customer: true } } },
@@ -70,6 +72,17 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
     }),
     invoiceTotals(),
     counterSalesTotal(Location.WORKSHOP),
+    db.proforma.findMany({
+      where: { status: { in: ["DRAFT", "SENT"] } },
+      include: { job: { include: { customer: true } }, items: true },
+      orderBy: { updatedAt: "desc" },
+    }),
+    db.job.findMany({
+      where: { status: { not: "COMPLETED" }, proforma: null },
+      include: { customer: true, vehicle: { include: { model: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
   ]);
 
   const due = totals.outstandingCents;
@@ -187,6 +200,89 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
           </table>
           {!requests.length && <div className="empty">No part requests need action.</div>}
         </div>
+      </section>
+
+      <section className="card mb" id="proformas">
+        <div className="section-title">
+          <div>
+            <h2>Proformas</h2>
+            <p className="subtitle" style={{ fontSize: "0.78rem", marginTop: 2 }}>
+              Quotes being prepared or waiting for the customer&apos;s answer
+            </p>
+          </div>
+          <span className="pill">{openProformas.length} open</span>
+        </div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th scope="col">Proforma</th>
+                <th scope="col">Job</th>
+                <th scope="col">Customer</th>
+                <th scope="col" className="number">Estimate</th>
+                <th scope="col">Status</th>
+                <th scope="col">Valid until</th>
+              </tr>
+            </thead>
+            <tbody>
+              {openProformas.map(proforma => (
+                <tr key={proforma.id}>
+                  <td>
+                    <Link className="text-link" href={`/finance/proformas/${proforma.id}`}>
+                      {proformaReference(proforma.number, proforma.revision)}
+                    </Link>
+                  </td>
+                  <td>
+                    <Link className="text-link" href={`/jobs/${proforma.jobId}`}>#{String(proforma.job.number).padStart(5, "0")}</Link>
+                  </td>
+                  <td>{proforma.job.customer.name}</td>
+                  <td className="number">{money(proforma.items.reduce((sum, item) => sum + item.quantity * item.unitCents, 0))}</td>
+                  <td><span className={`pill ${proforma.status.toLowerCase()}`}>{proforma.status.toLowerCase()}</span></td>
+                  <td>{date(proforma.validUntil)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!openProformas.length && <div className="empty">No proformas waiting. Prepare one for a job below.</div>}
+        </div>
+        {!!unquotedJobs.length && (
+          <>
+            <div className="divider" />
+            <h3>Open jobs without a proforma</h3>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th scope="col">Job</th>
+                    <th scope="col">Customer</th>
+                    <th scope="col">Vehicle</th>
+                    <th scope="col">Opened</th>
+                    <th scope="col"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {unquotedJobs.map(job => (
+                    <tr key={job.id}>
+                      <td>
+                        <Link className="text-link" href={`/jobs/${job.id}`}>#{String(job.number).padStart(5, "0")}</Link>
+                      </td>
+                      <td>{job.customer.name}</td>
+                      <td>{job.vehicle.year} {job.vehicle.model?.name || job.vehicle.customModel}</td>
+                      <td>{date(job.createdAt)}</td>
+                      <td>
+                        <form action={ensureProforma.bind(null, job.id)}>
+                          <SubmitButton className="btn btn-secondary btn-small" pendingLabel="...">
+                            Prepare proforma
+                          </SubmitButton>
+                        </form>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </section>
 
       {!!uninvoicedJobs.length && (

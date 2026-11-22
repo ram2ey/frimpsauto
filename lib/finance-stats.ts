@@ -4,16 +4,18 @@ import { db } from "@/lib/db";
 
 /** Invoice totals computed in the database, so they stay correct and fast however many invoices exist. */
 export async function invoiceTotals() {
-  const [billed, paid] = await Promise.all([
+  const [billed, paid, paidOnIssued] = await Promise.all([
     db.$queryRaw<{ total: bigint | number | null }[]>`
       SELECT COALESCE(SUM(i."quantity"::bigint * i."unitCents"), 0) AS total
       FROM "InvoiceItem" i JOIN "Invoice" v ON v."id" = i."invoiceId"
       WHERE v."status" <> 'DRAFT'`,
     db.payment.aggregate({ _sum: { amountCents: true } }),
+    // Deposits on draft invoices are money received, but nothing is billed against them yet.
+    db.payment.aggregate({ where: { invoice: { status: { not: "DRAFT" } } }, _sum: { amountCents: true } }),
   ]);
   const billedCents = Number(billed[0]?.total ?? 0);
   const receivedCents = paid._sum.amountCents ?? 0;
-  return { billedCents, receivedCents, outstandingCents: billedCents - receivedCents };
+  return { billedCents, receivedCents, outstandingCents: billedCents - (paidOnIssued._sum.amountCents ?? 0) };
 }
 
 /** All-time counter-sale revenue at a location (not just the recent rows a page lists). */

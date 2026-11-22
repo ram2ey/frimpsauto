@@ -194,6 +194,34 @@ async function main() {
   okAction(partResponse, "Create part");
   const part = await sql.query('SELECT id FROM "Part" WHERE sku=$1', [`SMOKE-${suffix.toUpperCase()}`]);
   assert.equal(part.rows.length, 1, "Part creation did not persist");
+
+  // Proforma: finance quotes the job before work, revises it, and takes a deposit.
+  const quoteJobHtml = await page(jobPath, financeCookie);
+  const prepared = await submit(jobPath, formFor(quoteJobHtml, "Prepare proforma"), {}, financeCookie);
+  assert.equal(prepared.status, 303, `Prepare proforma: ${prepared.status}`);
+  const proformaPath = new URL(prepared.headers.get("location"), base).pathname;
+  const proformaId = proformaPath.split("/").at(-1);
+  assert.equal((await get(proformaPath, technicianCookie)).status, 307);
+  okAction(await submit(proformaPath, formFor(await page(proformaPath, financeCookie), "Add part"), { partId: part.rows[0].id, quantity: "2" }, financeCookie), "Quote part");
+  okAction(await submit(proformaPath, formFor(await page(proformaPath, financeCookie), "Add charge"), { type: "LABOR", description: "Brake fitting", quantity: "1", price: "40.00" }, financeCookie), "Quote labor");
+  okAction(await submit(proformaPath, formFor(await page(proformaPath, financeCookie), 'value="SENT"'), {}, financeCookie), "Send proforma");
+  const sentProforma = await sql.query('SELECT status, revision FROM "Proforma" WHERE id=$1', [proformaId]);
+  assert.deepEqual(sentProforma.rows[0], { status: "SENT", revision: 1 });
+  const stockAfterQuote = await sql.query('SELECT "stockQty" FROM "Part" WHERE id=$1', [part.rows[0].id]);
+  assert.equal(stockAfterQuote.rows[0].stockQty, 10, "Quoting must not take stock");
+  okAction(await submit(proformaPath, formFor(await page(proformaPath, financeCookie), "Add charge"), { type: "ITEM", description: "Brake cleaner", quantity: "1", price: "5.00" }, financeCookie), "Revise proforma");
+  const revised = await sql.query('SELECT status, revision, (SELECT SUM(quantity*"unitCents") FROM "ProformaItem" WHERE "proformaId"=p.id) AS total FROM "Proforma" p WHERE id=$1', [proformaId]);
+  assert.deepEqual({ ...revised.rows[0], total: Number(revised.rows[0].total) }, { status: "DRAFT", revision: 2, total: 19550 });
+  okAction(await submit(proformaPath, formFor(await page(proformaPath, financeCookie), 'value="ACCEPTED"'), {}, financeCookie), "Accept proforma");
+  okAction(await submit(proformaPath, formFor(await page(proformaPath, financeCookie), "Record deposit"), { amount: "20.00", method: "Mobile money" }, financeCookie), "Record deposit");
+  const deposit = await sql.query('SELECT p."amountCents", p."isDeposit", i.status FROM "Payment" p JOIN "Invoice" i ON i.id=p."invoiceId" WHERE i."jobId"=$1', [jobId]);
+  assert.deepEqual(deposit.rows, [{ amountCents: 2000, isDeposit: true, status: "DRAFT" }]);
+  const proformaPdf = await get(`/api/proformas/${proformaId}/download`, financeCookie);
+  assert.equal(proformaPdf.status, 200);
+  const proformaBytes = Buffer.from(await proformaPdf.arrayBuffer());
+  assert.ok(proformaBytes.includes(Buffer.from("PROFORMA INVOICE")), "Proforma PDF must be titled as a proforma");
+  assert.ok(proformaBytes.includes(Buffer.from("Rev 2")), "Proforma PDF must show the revision");
+
   const requestHtml = await page(jobPath, supervisorCookie);
   const requestResponse = await submit(jobPath, formFor(requestHtml, "Request part"), { partId: part.rows[0].id, quantity: "2", note: "Replace worn pads" }, supervisorCookie);
   okAction(requestResponse, "Request part");
@@ -223,6 +251,8 @@ async function main() {
   okAction(await submit(invoicePath, formFor(readyInvoice, "Issue invoice"), {}, financeCookie), "Issue invoice");
   const issuedInvoice = await page(invoicePath, financeCookie);
   assert.match(issuedInvoice, new RegExp(`/api/invoices/${invoiceId}/download`));
+  const issuedStatus = await sql.query('SELECT status FROM "Invoice" WHERE id=$1', [invoiceId]);
+  assert.equal(issuedStatus.rows[0].status, "PARTIAL", "The proforma deposit counts toward the issued invoice");
   const download = await get(`/api/invoices/${invoiceId}/download`, financeCookie);
   assert.equal(download.status, 200);
   assert.match(download.headers.get("content-type") || "", /application\/pdf/);
@@ -232,7 +262,7 @@ async function main() {
   assert.ok(pdf.includes(Buffer.from("/Subtype /Image")), "Invoice PDF must contain the logo");
   assert.ok(pdf.includes(Buffer.from(`Smoke Customer ${suffix}`)), "Invoice PDF must contain the customer");
   if (smokeAdminUsername && process.env.SMOKE_ADMIN_PASSWORD) assert.ok(pdf.includes(Buffer.from(`Frimps Smoke ${suffix}`)), "Invoice PDF must contain saved business details");
-  okAction(await submit(invoicePath, formFor(issuedInvoice, "Record payment"), { amount: "50.00", method: "Cash" }, financeCookie), "Record payment");
+  okAction(await submit(invoicePath, formFor(issuedInvoice, "Record payment"), { amount: "30.00", method: "Cash" }, financeCookie), "Record payment");
   const balance = await sql.query('SELECT i.status, COALESCE((SELECT SUM(quantity*"unitCents") FROM "InvoiceItem" WHERE "invoiceId"=i.id),0) AS total, COALESCE((SELECT SUM("amountCents") FROM "Payment" WHERE "invoiceId"=i.id),0) AS paid FROM "Invoice" i WHERE i.id=$1', [invoiceId]);
   assert.equal(balance.rows[0].status, "PARTIAL");
   assert.equal(Number(balance.rows[0].total) - Number(balance.rows[0].paid), 14050);
@@ -240,7 +270,7 @@ async function main() {
   okAction(await submit(invoicePath, formFor(partialHtml, "Record payment"), { amount: "140.50", method: "Card" }, financeCookie), "Pay balance");
   const paidInvoice = await sql.query('SELECT status FROM "Invoice" WHERE id=$1', [invoiceId]);
   assert.equal(paidInvoice.rows[0].status, "PAID");
-  console.log("Smoke workflow passed: roles, staff creation, password changes, dashboard access and counts, job search, job, checklist, diagnostic access, parts, stock, invoice and payments.");
+  console.log("Smoke workflow passed: roles, staff creation, password changes, dashboard access and counts, job search, job, checklist, diagnostic access, parts, stock, proforma and deposit, invoice and payments.");
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => sql.end());

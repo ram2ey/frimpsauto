@@ -2,20 +2,54 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { paymentMethods } from "@/lib/payment-details";
 
+type JobForPdf = {
+  number: number;
+  mileage: number | null;
+  customer: { name: string; phone: string; email: string | null };
+  vehicle: { year: number; model: { name: string } | null; customModel: string | null; vin: string | null; plate: string | null };
+};
+type ItemForPdf = { type: string; description: string; quantity: number; unitCents: number };
+type PaymentForPdf = { amountCents: number; paidAt: Date; method: string; reference: string | null; isDeposit?: boolean };
 type InvoiceForPdf = {
   number: number;
   status: string;
   createdAt: Date;
   issuedAt: Date | null;
-  job: {
-    number: number;
-    mileage: number | null;
-    customer: { name: string; phone: string; email: string | null };
-    vehicle: { year: number; model: { name: string } | null; customModel: string | null; vin: string | null; plate: string | null };
-  };
-  items: { type: string; description: string; quantity: number; unitCents: number }[];
-  payments: { amountCents: number; paidAt: Date; method: string; reference: string | null }[];
+  job: JobForPdf;
+  items: ItemForPdf[];
+  payments: PaymentForPdf[];
 };
+type ProformaForPdf = {
+  number: number;
+  revision: number;
+  status: string;
+  createdAt: Date;
+  sentAt: Date | null;
+  validUntil: Date | null;
+  notes: string | null;
+  job: JobForPdf;
+  items: ItemForPdf[];
+};
+
+/** What the shared layout needs, whichever document it is printing. */
+type DocumentForPdf = {
+  title: string;
+  reference: string;
+  meta: string[];
+  date: Date;
+  job: JobForPdf;
+  items: ItemForPdf[];
+  payments: PaymentForPdf[];
+  paymentsHeading: string;
+  totalLabel: string;
+  paidLabel: string;
+  balanceLabel: string;
+  notes?: string | null;
+  disclaimer?: string;
+};
+
+export const invoiceReference = (number: number) => `INV-${String(number).padStart(5, "0")}`;
+export const proformaReference = (number: number, revision = 1) => `PF-${String(number).padStart(5, "0")}${revision > 1 ? ` Rev ${revision}` : ""}`;
 type BusinessForPdf = ({ name: string; address: string | null; phone: string | null; email: string | null } & Parameters<typeof paymentMethods>[0]) | null;
 
 const money = (cents: number) => `GHS ${(cents / 100).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -57,7 +91,41 @@ function wrap(value: string, limit: number) {
   return lines.length ? lines : [""];
 }
 
-export async function createInvoicePdf(invoice: InvoiceForPdf, business: BusinessForPdf = null): Promise<Buffer> {
+export function createInvoicePdf(invoice: InvoiceForPdf, business: BusinessForPdf = null) {
+  return createDocumentPdf({
+    title: "INVOICE",
+    reference: invoiceReference(invoice.number),
+    meta: [`Status: ${invoice.status.toLowerCase()}`],
+    date: invoice.issuedAt || invoice.createdAt,
+    job: invoice.job,
+    items: invoice.items,
+    payments: invoice.payments,
+    paymentsHeading: "PAYMENTS",
+    totalLabel: "Total",
+    paidLabel: "Paid",
+    balanceLabel: "Balance due",
+  }, business);
+}
+
+export function createProformaPdf(proforma: ProformaForPdf, deposits: PaymentForPdf[], business: BusinessForPdf = null) {
+  return createDocumentPdf({
+    title: "PROFORMA INVOICE",
+    reference: proformaReference(proforma.number, proforma.revision),
+    meta: proforma.validUntil ? [`Valid until: ${date(proforma.validUntil)}`] : [],
+    date: proforma.sentAt || proforma.createdAt,
+    job: proforma.job,
+    items: proforma.items,
+    payments: deposits,
+    paymentsHeading: "DEPOSITS RECEIVED",
+    totalLabel: "Estimated total",
+    paidLabel: "Deposit paid",
+    balanceLabel: "Balance",
+    notes: proforma.notes,
+    disclaimer: "This proforma invoice is an estimate, not a demand for payment. The final invoice may differ if further faults are found during the work.",
+  }, business);
+}
+
+async function createDocumentPdf(doc: DocumentForPdf, business: BusinessForPdf): Promise<Buffer> {
   const logo = await readFile(path.join(process.cwd(), "public", "frimps-logo.jpeg"));
   const logoSize = jpegSize(logo);
   const objects: Buffer[] = [];
@@ -101,23 +169,24 @@ export async function createInvoicePdf(invoice: InvoiceForPdf, business: Busines
   };
   const room = (height: number) => { if (y + height > 770) startPage(); };
   startPage();
-  const invoiceNumber = `INV-${String(invoice.number).padStart(5, "0")}`;
-  write("INVOICE", 42, y, 20, true);
+  const { job } = doc;
+  const invoiceNumber = doc.reference;
+  write(doc.title, 42, y, 20, true);
   right(invoiceNumber, 553, y, 13, true);
   y += 24;
-  write(`Status: ${invoice.status.toLowerCase()}`, 42, y, 9);
-  right(`Date: ${date(invoice.issuedAt || invoice.createdAt)}`, 553, y, 9);
+  write(doc.meta.join("   ·   "), 42, y, 9);
+  right(`Date: ${date(doc.date)}`, 553, y, 9);
   y += 28;
   const customerLines = [
-    ...wrap(invoice.job.customer.name, 38),
-    ...wrap(invoice.job.customer.phone, 38),
-    ...(invoice.job.customer.email ? wrap(invoice.job.customer.email, 38) : []),
+    ...wrap(job.customer.name, 38),
+    ...wrap(job.customer.phone, 38),
+    ...(job.customer.email ? wrap(job.customer.email, 38) : []),
   ];
   const vehicleLines = [
-    `Job #${String(invoice.job.number).padStart(5, "0")}`,
-    ...wrap(`${invoice.job.vehicle.year} Mercedes-Benz ${invoice.job.vehicle.model?.name || invoice.job.vehicle.customModel || ""}`, 41),
-    ...[invoice.job.vehicle.plate && `Plate: ${invoice.job.vehicle.plate}`, invoice.job.vehicle.vin && `VIN: ${invoice.job.vehicle.vin}`].filter((value): value is string => Boolean(value)),
-    ...(invoice.job.mileage !== null ? [`Mileage: ${invoice.job.mileage.toLocaleString("en-GH")}`] : []),
+    `Job #${String(job.number).padStart(5, "0")}`,
+    ...wrap(`${job.vehicle.year} Mercedes-Benz ${job.vehicle.model?.name || job.vehicle.customModel || ""}`, 41),
+    ...[job.vehicle.plate && `Plate: ${job.vehicle.plate}`, job.vehicle.vin && `VIN: ${job.vehicle.vin}`].filter((value): value is string => Boolean(value)),
+    ...(job.mileage !== null ? [`Mileage: ${job.mileage.toLocaleString("en-GH")}`] : []),
   ];
   const boxHeight = Math.max(92, 44 + Math.max(customerLines.length, vehicleLines.length) * 14);
   rect(42, y - 12, 511, boxHeight, "0.94 0.97 0.99");
@@ -137,7 +206,7 @@ export async function createInvoicePdf(invoice: InvoiceForPdf, business: Busines
     y += 32;
   };
   tableHead();
-  for (const item of invoice.items) {
+  for (const item of doc.items) {
     const lines = wrap(item.description, 48);
     const height = Math.max(32, lines.length * 13 + 16);
     if (y + height > 755) { startPage(); tableHead(); }
@@ -149,18 +218,32 @@ export async function createInvoicePdf(invoice: InvoiceForPdf, business: Busines
     y += height;
     line(42, y - 12, 553, y - 12);
   }
-  if (!invoice.items.length) { write("No charges yet", 50, y + 4, 9); y += 35; }
-  const total = invoice.items.reduce((sum, item) => sum + item.quantity * item.unitCents, 0);
-  const paid = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0);
+  if (!doc.items.length) { write("No charges yet", 50, y + 4, 9); y += 35; }
+  const total = doc.items.reduce((sum, item) => sum + item.quantity * item.unitCents, 0);
+  const paid = doc.payments.reduce((sum, payment) => sum + payment.amountCents, 0);
   room(100);
   y += 16;
-  write("Total", 370, y, 10, true); right(money(total), 545, y, 10, true);
+  write(doc.totalLabel, 370, y, 10, true); right(money(total), 545, y, 10, true);
   y += 22;
-  write("Paid", 370, y, 10); right(money(paid), 545, y, 10);
+  write(doc.paidLabel, 370, y, 10); right(money(paid), 545, y, 10);
   y += 22;
   line(362, y - 10, 553, y - 10);
-  write("Balance due", 370, y + 5, 11, true); right(money(total - paid), 545, y + 5, 11, true);
+  write(doc.balanceLabel, 370, y + 5, 11, true); right(money(total - paid), 545, y + 5, 11, true);
   y += 39;
+  if (doc.notes?.trim()) {
+    const noteLines = doc.notes.split(/\r?\n/).flatMap(value => (value.trim() ? wrap(value, 100) : [""]));
+    room(30 + noteLines.length * 12);
+    write("NOTES", 42, y, 9, true);
+    y += 16;
+    for (const value of noteLines) { room(14); write(value, 42, y, 9); y += 12; }
+    y += 16;
+  }
+  if (doc.disclaimer) {
+    const disclaimerLines = wrap(doc.disclaimer, 110);
+    room(disclaimerLines.length * 11 + 20);
+    disclaimerLines.forEach((value, index) => write(value, 42, y + index * 11, 8, false, "0.36 0.46 0.54"));
+    y += disclaimerLines.length * 11 + 20;
+  }
   const methods = total - paid > 0 ? paymentMethods(business) : [];
   if (methods.length) {
     // Long values (e.g. two account holder names) wrap within their column.
@@ -188,12 +271,12 @@ export async function createInvoicePdf(invoice: InvoiceForPdf, business: Busines
     write(`Please use ${invoiceNumber} as the payment reference.`, 42, y + 2, 8, false, "0.36 0.46 0.54");
     y += 24;
   }
-  if (invoice.payments.length) {
+  if (doc.payments.length) {
     room(45);
-    write("PAYMENTS", 42, y, 9, true);
+    write(doc.paymentsHeading, 42, y, 9, true);
     y += 18;
-    for (const payment of invoice.payments) {
-      const detail = `${date(payment.paidAt)}  ·  ${payment.method}${payment.reference ? `  ·  ${payment.reference}` : ""}`;
+    for (const payment of doc.payments) {
+      const detail = `${date(payment.paidAt)}  ·  ${payment.method}${payment.isDeposit ? " (deposit)" : ""}${payment.reference ? `  ·  ${payment.reference}` : ""}`;
       const detailLines = wrap(detail, 65);
       room(detailLines.length * 12 + 6);
       detailLines.forEach((value, index) => write(value, 42, y + index * 12, 8));

@@ -162,10 +162,10 @@ button:disabled[aria-busy="true"] {
 .job-number:hover { border-color: var(--blue); }
 .pill { display: inline-block; border: 1px solid transparent; border-radius: 0; padding: 4px 8px; font-size: .65rem; line-height: 1.35; font-weight: 600; background: #dfedf6; color: #315b79; white-space: nowrap; }
 .pill.open, .pill.requested, .pill.draft { background: #e0effb; color: #175b8e; }
-.pill.in_progress, .pill.approved, .pill.issued { background: #e0f0ee; color: #25665d; }
+.pill.in_progress, .pill.approved, .pill.issued, .pill.sent { background: #e0f0ee; color: #25665d; }
 .pill.waiting_parts, .pill.partial { background: #fbefd9; color: #805512; }
-.pill.completed, .pill.paid { background: #e4f1e7; color: #306640; }
-.pill.rejected { background: #fce7e7; color: #963637; }
+.pill.completed, .pill.paid, .pill.accepted { background: #e4f1e7; color: #306640; }
+.pill.rejected, .pill.declined { background: #fce7e7; color: #963637; }
 .stat { padding: 22px 24px; min-width: 0; }
 .stat .value { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(1.8rem, 2.7vw, 2.65rem); font-weight: 400; letter-spacing: -.04em; line-height: 1.15; margin: 10px 0 5px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .stat .label { font-size: .74rem; font-weight: 500; color: var(--muted); }

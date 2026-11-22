@@ -41,6 +41,13 @@ enum InvoiceStatus {
   PAID
 }
 
+enum ProformaStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+}
+
 enum InvoiceItemType {
   PART
   LABOR
@@ -143,6 +150,7 @@ model Job {
   diagnostics    Diagnostic[]
   partRequests   PartRequest[]
   invoice        Invoice?
+  proforma       Proforma?
 
   @@index([status])
   @@index([technicianId])
@@ -218,6 +226,7 @@ model Part {
   stockMoves       StockMovement[]
   transfers        StockTransfer[]
   directSaleItems  DirectSaleItem[]
+  proformaItems    ProformaItem[]
 }
 
 model StockMovement {
@@ -323,8 +332,42 @@ model Payment {
   amountCents Int
   method     String
   reference  String?
+  isDeposit  Boolean  @default(false) // Taken against the proforma before the invoice was issued
   paidAt     DateTime @default(now())
   invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+/// The quote sent to the customer before work starts. One per job; editing a sent one starts a new revision.
+model Proforma {
+  id         String         @id @default(cuid())
+  number     Int            @unique @default(autoincrement())
+  jobId      String         @unique
+  status     ProformaStatus @default(DRAFT)
+  revision   Int            @default(1)
+  validUntil DateTime?
+  notes      String?
+  sentAt     DateTime?
+  decidedAt  DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  job        Job            @relation(fields: [jobId], references: [id])
+  items      ProformaItem[]
+}
+
+/// A quoted line. PART lines point at the catalogue for reference only; no stock is reserved.
+model ProformaItem {
+  id          String          @id @default(cuid())
+  proformaId  String
+  type        InvoiceItemType
+  partId      String?
+  description String
+  quantity    Int
+  unitCents   Int
+  createdAt   DateTime        @default(now())
+  proforma    Proforma        @relation(fields: [proformaId], references: [id], onDelete: Cascade)
+  part        Part?           @relation(fields: [partId], references: [id], onDelete: SetNull)
+
+  @@index([proformaId])
 }
 
 model BusinessProfile {

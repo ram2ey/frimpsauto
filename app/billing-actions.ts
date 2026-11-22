@@ -216,11 +216,16 @@ export async function issueInvoice(invoiceId: string) {
   return formAction(async () => {
     await assertRole([Role.FINANCE]);
     await serializable(async tx => {
-      const invoice = await tx.invoice.findUnique({ where: { id: invoiceId }, include: { job: true, items: true } });
+      const invoice = await tx.invoice.findUnique({ where: { id: invoiceId }, include: { job: true, items: true, payments: true } });
       if (!invoice || invoice.status !== "DRAFT") throw new UserError("Invoice is not a draft.");
       if (invoice.job.status !== "COMPLETED") throw new UserError("The supervisor must close the job before the invoice is issued.");
       if (!invoice.items.length) throw new UserError("Add at least one line before issuing the invoice.");
-      await tx.invoice.update({ where: { id: invoiceId }, data: { status: "ISSUED", issuedAt: new Date() } });
+      // Deposits taken against the proforma are already on the invoice.
+      const total = invoice.items.reduce((sum, item) => sum + item.quantity * item.unitCents, 0);
+      const paid = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0);
+      if (paid > total) throw new UserError("Deposits received are more than the invoice total. Add the missing charges or refund the difference first.");
+      const status = paid > 0 && paid === total ? "PAID" : paid > 0 ? "PARTIAL" : "ISSUED";
+      await tx.invoice.update({ where: { id: invoiceId }, data: { status, issuedAt: new Date() } });
     });
     revalidatePath(`/finance/invoices/${invoiceId}`);
     revalidatePath("/finance");

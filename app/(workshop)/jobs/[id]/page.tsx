@@ -12,7 +12,9 @@ import { VehicleAvatar } from "@/components/vehicle-avatar";
 import { canViewJob } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
+import { proformaReference } from "@/lib/invoice-pdf";
 import { assignTechnician, requestPart, updateFindings } from "@/app/job-actions";
+import { ensureProforma } from "@/app/proforma-actions";
 
 export default async function JobDetail({
   params,
@@ -23,7 +25,7 @@ export default async function JobDetail({
 }) {
   const { id } = await params;
   const { tab } = (await searchParams) || {};
-  const validTabs = ["overview", "checklist", "parts", "diagnostics", "billing"] as const;
+  const validTabs = ["overview", "checklist", "parts", "diagnostics", "proforma", "billing"] as const;
   const defaultTab = validTabs.includes(tab as (typeof validTabs)[number]) ? (tab as (typeof validTabs)[number]) : "overview";
   const user = await canViewJob(id);
   const job = await db.job.findUnique({
@@ -37,9 +39,13 @@ export default async function JobDetail({
       diagnostics: { orderBy: { createdAt: "desc" }, include: { uploadedBy: true } },
       partRequests: { include: { part: true }, orderBy: { createdAt: "desc" } },
       invoice: { include: { items: true, payments: true } },
+      proforma: { include: { items: { orderBy: { createdAt: "asc" } } } },
     },
   });
   if (!job) notFound();
+  const isFinance = user.role === Role.ADMIN || user.role === Role.FINANCE;
+  const quoted = job.proforma?.items.reduce((sum, item) => sum + item.quantity * item.unitCents, 0) || 0;
+  const deposited = job.invoice?.payments.filter(payment => payment.isDeposit).reduce((sum, payment) => sum + payment.amountCents, 0) || 0;
 
   const edit = (user.role === Role.SUPERVISOR || user.role === Role.ADMIN) && job.status !== "COMPLETED";
   // canViewJob already limits technicians to their own assigned jobs.
@@ -136,6 +142,7 @@ export default async function JobDetail({
           checklist: totalCount > 0 ? `${checkedCount}/${totalCount}` : undefined,
           parts: job.partRequests.length,
           diagnostics: job.diagnostics.length,
+          proforma: job.proforma ? job.proforma.status.toLowerCase() : undefined,
           billing: job.invoice ? money(balance) : undefined,
         }}
         overview={
@@ -322,6 +329,76 @@ export default async function JobDetail({
               )}
             </section>
           </div>
+        }
+        proforma={
+          <section className="card mb">
+            <div className="section-title">
+              <h2>Proforma {job.proforma && proformaReference(job.proforma.number, job.proforma.revision)}</h2>
+              {job.proforma && isFinance && (
+                <div className="actions">
+                  <Link className="btn btn-secondary btn-small" href={`/finance/proformas/${job.proforma.id}`}>Open proforma</Link>
+                  <a className="btn btn-primary btn-small" href={`/api/proformas/${job.proforma.id}/download`} download>Download PDF</a>
+                </div>
+              )}
+            </div>
+            {job.proforma ? (
+              <>
+                <div className="grid three mb">
+                  <div className="stat">
+                    <div className="label">Estimated total</div>
+                    <div className="value">{money(quoted)}</div>
+                  </div>
+                  <div className="stat">
+                    <div className="label">Status</div>
+                    <div className="value" style={{ fontSize: "1.4rem" }}>
+                      <span className={`pill ${job.proforma.status.toLowerCase()}`}>{job.proforma.status.toLowerCase()}</span>
+                    </div>
+                    <small className="muted">
+                      {job.proforma.decidedAt ? `Decided ${date(job.proforma.decidedAt)}` : job.proforma.sentAt ? `Sent ${date(job.proforma.sentAt)}` : "Not sent yet"}
+                    </small>
+                  </div>
+                  <div className="stat">
+                    <div className="label">Deposit received</div>
+                    <div className="value">{money(deposited)}</div>
+                  </div>
+                </div>
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Qty</th>
+                        <th>Unit price</th>
+                        <th>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {job.proforma.items.map(item => (
+                        <tr key={item.id}>
+                          <td><span className="pill">{item.type.toLowerCase()}</span></td>
+                          <td>{item.description}</td>
+                          <td>{item.quantity}</td>
+                          <td>{money(item.unitCents)}</td>
+                          <td>{money(item.quantity * item.unitCents)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {!job.proforma.items.length && <div className="empty">Finance is still preparing the quote.</div>}
+                </div>
+              </>
+            ) : isFinance ? (
+              <div className="stack">
+                <p className="muted" style={{ margin: 0 }}>No proforma yet. Prepare one so the customer knows the cost before work starts.</p>
+                <form action={ensureProforma.bind(null, id)}>
+                  <SubmitButton pendingLabel="Preparing..."><Plus size={16} /> Prepare proforma</SubmitButton>
+                </form>
+              </div>
+            ) : (
+              <p className="muted">Finance has not prepared a proforma for this job yet.</p>
+            )}
+          </section>
         }
         billing={
           <section className="card mb">

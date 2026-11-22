@@ -7,6 +7,7 @@ import { addLabor, issueInvoice, recordPayment } from "@/app/billing-actions";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
+import { proformaReference } from "@/lib/invoice-pdf";
 import { InvoiceLineItems } from "@/components/invoice-line-items";
 import { PrintButton } from "@/components/print-button";
 import { SubmitButton } from "@/components/submit-button";
@@ -19,7 +20,7 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
     db.invoice.findUnique({
       where: { id },
       include: {
-        job: { include: { customer: true, vehicle: { include: { model: true } } } },
+        job: { include: { customer: true, vehicle: { include: { model: true } }, proforma: { include: { items: true } } } },
         items: { orderBy: { createdAt: "asc" } },
         payments: { orderBy: { paidAt: "desc" } },
       },
@@ -32,6 +33,8 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
   const paid = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0);
   const balance = total - paid;
   const payment = paymentMethods(business);
+  const { proforma } = invoice.job;
+  const quoted = proforma?.items.reduce((sum, item) => sum + item.quantity * item.unitCents, 0) ?? 0;
 
   return (
     <main className="content">
@@ -115,6 +118,13 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
           <div className="value">{money(balance)}</div>
         </div>
       </div>
+
+      {proforma && (
+        <p className="muted no-print mb" style={{ fontSize: "0.85rem" }}>
+          Quoted on <Link className="text-link" href={`/finance/proformas/${proforma.id}`}>{proformaReference(proforma.number, proforma.revision)}</Link> ({proforma.status.toLowerCase()}): <strong>{money(quoted)}</strong>
+          {" · "}Invoice {total === quoted ? "matches the quote" : <>is <strong>{money(Math.abs(total - quoted))}</strong> {total > quoted ? "above" : "below"} the quote</>}
+        </p>
+      )}
 
       <section className="card mb">
         <div className="section-title">
@@ -223,7 +233,7 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
                 {invoice.payments.map((payment) => (
                   <tr key={payment.id}>
                     <td>{date(payment.paidAt)}</td>
-                    <td>{payment.method}</td>
+                    <td>{payment.method}{payment.isDeposit && <> <span className="pill">deposit</span></>}</td>
                     <td>{payment.reference || "—"}</td>
                     <td>{money(payment.amountCents)}</td>
                   </tr>

@@ -1,0 +1,25 @@
+import { NextResponse } from "next/server";
+import { Role } from "@/generated/prisma/client";
+import { requireRole } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { createProformaPdf } from "@/lib/invoice-pdf";
+
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  await requireRole([Role.FINANCE]);
+  const { id } = await params;
+  const [proforma, business] = await Promise.all([db.proforma.findUnique({ where: { id }, include: {
+    job: { include: { customer: true, vehicle: { include: { model: true } }, invoice: { include: { payments: { where: { isDeposit: true }, orderBy: { paidAt: "asc" } } } } } },
+    items: { orderBy: { createdAt: "asc" } },
+  } }), db.businessProfile.findUnique({ where: { id: "primary" } })]);
+  if (!proforma) return new Response("Proforma not found", { status: 404 });
+  const pdf = await createProformaPdf(proforma, proforma.job.invoice?.payments ?? [], business);
+  const revision = proforma.revision > 1 ? `-Rev${proforma.revision}` : "";
+  const filename = `Frimps-Proforma-PF-${String(proforma.number).padStart(5, "0")}${revision}.pdf`;
+  return new NextResponse(new Uint8Array(pdf), { headers: {
+    "Content-Type": "application/pdf",
+    "Content-Disposition": `attachment; filename="${filename}"`,
+    "Content-Length": String(pdf.length),
+    "Cache-Control": "private, no-store",
+    "X-Content-Type-Options": "nosniff",
+  } });
+}

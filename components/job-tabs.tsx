@@ -1,20 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { ClipboardList, ListChecks, Package, FileText, ReceiptText } from "lucide-react";
+import { ClipboardList, ListChecks, Package, FileText, Calculator, ReceiptText } from "lucide-react";
 
-export type TabKey = "overview" | "checklist" | "parts" | "diagnostics" | "billing";
+export type TabKey = "overview" | "checklist" | "parts" | "diagnostics" | "proforma" | "billing";
 
 interface JobTabsProps {
   overview: React.ReactNode;
   checklist: React.ReactNode;
   parts: React.ReactNode;
   diagnostics: React.ReactNode;
+  proforma: React.ReactNode;
   billing: React.ReactNode;
   counts: {
     checklist?: string;
     parts?: number;
     diagnostics?: number;
+    proforma?: string;
     billing?: string;
   };
   defaultTab?: TabKey;
@@ -25,6 +27,7 @@ const TABS: { id: TabKey; label: string; icon: typeof ClipboardList }[] = [
   { id: "checklist", label: "Inspection Checklist", icon: ListChecks },
   { id: "parts", label: "Parts Requests", icon: Package },
   { id: "diagnostics", label: "Diagnostics & Files", icon: FileText },
+  { id: "proforma", label: "Proforma", icon: Calculator },
   { id: "billing", label: "Invoice & Billing", icon: ReceiptText },
 ];
 
@@ -33,6 +36,7 @@ export function JobTabs({
   checklist,
   parts,
   diagnostics,
+  proforma,
   billing,
   counts,
   defaultTab = "overview",
@@ -70,6 +74,9 @@ export function JobTabs({
     }
     if (id === "diagnostics" && typeof counts.diagnostics === "number" && counts.diagnostics > 0) {
       return <span className="pill">{counts.diagnostics}</span>;
+    }
+    if (id === "proforma" && counts.proforma) {
+      return <span className="pill">{counts.proforma}</span>;
     }
     if (id === "billing" && counts.billing) {
       return <span className="pill">{counts.billing}</span>;
@@ -142,6 +149,16 @@ export function JobTabs({
         hidden={activeTab !== "diagnostics"}
       >
         {diagnostics}
+      </div>
+
+      <div
+        id="panel-proforma"
+        role="tabpanel"
+        aria-labelledby="tab-proforma"
+        className="job-tab-panel"
+        hidden={activeTab !== "proforma"}
+      >
+        {proforma}
       </div>
 
       <div

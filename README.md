@@ -37,6 +37,8 @@ The sign-in form always uses a username. If an existing admin's username is thei
 
 Admins can enter the business name, address, phone, and email under **Business details**. These appear beside the logo in downloaded invoices. Finance staff and admins can download a PDF from each invoice; it includes the customer, vehicle, line items, payments, and balance. Mileage is recorded on each job's inspection checklist so repeat visits retain separate readings. Apply the new migrations before using this version.
 
+Before work starts, finance can prepare a **proforma invoice** (quote) from the job's Proforma tab or the Finance page. Quoting a part does not take stock. Staff download the PDF, send it to the customer, and mark it sent, accepted, or declined. Each job has one proforma; editing it after it was sent starts a new revision (`PF-00012 Rev 2`) that has to be sent again. A deposit taken against the proforma is recorded on the job's invoice and comes off the balance when that invoice is issued. The invoice page shows how the final total compares with the quote.
+
 For local development with an existing PostgreSQL server, set `DATABASE_URL`, run `npm install`, `npm run db:migrate`, `npm run db:seed`, and `npm run dev`.
 
 Existing staff can sign in with their previous email address entered as the username after migration, then change it under **Account**. Staff with unclaimed invitations need an administrator to set a temporary password on the Staff & access screen.
