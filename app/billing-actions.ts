@@ -8,6 +8,7 @@ import { assertRole } from "@/lib/auth";
 import { UserError } from "@/lib/errors";
 import { db } from "@/lib/db";
 import { amountFromForm, positiveInt, text } from "@/lib/format";
+import { recordCommission } from "@/lib/commission";
 
 export async function ensureInvoice(jobId: string) {
   return formAction(async () => {
@@ -226,6 +227,7 @@ export async function issueInvoice(invoiceId: string) {
       if (paid > total) throw new UserError("Deposits received are more than the invoice total. Add the missing charges or refund the difference first.");
       const status = paid > 0 && paid === total ? "PAID" : paid > 0 ? "PARTIAL" : "ISSUED";
       await tx.invoice.update({ where: { id: invoiceId }, data: { status, issuedAt: new Date() } });
+      if (status === "PAID") await recordCommission(tx, invoiceId);
     });
     revalidatePath(`/finance/invoices/${invoiceId}`);
     revalidatePath("/finance");
@@ -245,7 +247,9 @@ export async function recordPayment(invoiceId: string, form: FormData) {
       const paid = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0);
       if (paid + amountCents > total) throw new UserError("Payment exceeds the balance due.");
       await tx.payment.create({ data: { invoiceId, amountCents, method, reference: String(form.get("reference") || "").trim().slice(0, 100) || null } });
-      await tx.invoice.update({ where: { id: invoiceId }, data: { status: paid + amountCents === total ? "PAID" : "PARTIAL" } });
+      const fullyPaid = paid + amountCents === total;
+      await tx.invoice.update({ where: { id: invoiceId }, data: { status: fullyPaid ? "PAID" : "PARTIAL" } });
+      if (fullyPaid) await recordCommission(tx, invoiceId);
     });
     revalidatePath(`/finance/invoices/${invoiceId}`);
     revalidatePath("/finance");

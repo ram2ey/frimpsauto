@@ -266,11 +266,27 @@ async function main() {
   const balance = await sql.query('SELECT i.status, COALESCE((SELECT SUM(quantity*"unitCents") FROM "InvoiceItem" WHERE "invoiceId"=i.id),0) AS total, COALESCE((SELECT SUM("amountCents") FROM "Payment" WHERE "invoiceId"=i.id),0) AS paid FROM "Invoice" i WHERE i.id=$1', [invoiceId]);
   assert.equal(balance.rows[0].status, "PARTIAL");
   assert.equal(Number(balance.rows[0].total) - Number(balance.rows[0].paid), 14050);
+  // Commission: 20% of the GHS 40.00 labour line, earned only once the invoice is paid in full.
+  await sql.query('UPDATE "User" SET "commissionBps"=2000 WHERE id=$1', [technician.id]);
+  const noCommissionYet = await sql.query('SELECT id FROM "Commission" WHERE "invoiceId"=$1', [invoiceId]);
+  assert.equal(noCommissionYet.rows.length, 0, "Commission waits for full payment");
   const partialHtml = await page(invoicePath, financeCookie);
   okAction(await submit(invoicePath, formFor(partialHtml, "Record payment"), { amount: "140.50", method: "Card" }, financeCookie), "Pay balance");
   const paidInvoice = await sql.query('SELECT status FROM "Invoice" WHERE id=$1', [invoiceId]);
   assert.equal(paidInvoice.rows[0].status, "PAID");
-  console.log("Smoke workflow passed: roles, staff creation, password changes, dashboard access and counts, job search, job, checklist, diagnostic access, parts, stock, proforma and deposit, invoice and payments.");
+  const commission = await sql.query('SELECT id,"technicianId","laborCents","rateBps","amountCents","payoutId" FROM "Commission" WHERE "invoiceId"=$1', [invoiceId]);
+  const { technicianId, laborCents, rateBps, amountCents, payoutId } = commission.rows[0];
+  assert.deepEqual({ technicianId, laborCents, rateBps, amountCents, payoutId }, { technicianId: technician.id, laborCents: 4000, rateBps: 2000, amountCents: 800, payoutId: null });
+  assert.equal((await get("/finance/commissions", technicianCookie)).status, 307);
+  const earningsBefore = await page("/dashboard", technicianCookie);
+  assert.match(earningsBefore, /My earnings/);
+  const commissionsPath = `/finance/commissions?tech=${technician.id}`;
+  const payoutResponse = await submit(commissionsPath, formFor(await page(commissionsPath, financeCookie), "Record payout"), { commissionId: commission.rows[0].id, method: "Mobile money" }, financeCookie);
+  assert.equal(payoutResponse.status, 303, `Record commission payout: ${payoutResponse.status}`);
+  const paidCommission = await sql.query('SELECT c."payoutId", p."amountCents" FROM "Commission" c JOIN "CommissionPayout" p ON p.id=c."payoutId" WHERE c.id=$1', [commission.rows[0].id]);
+  assert.equal(paidCommission.rows[0].amountCents, 800);
+  await page(new URL(payoutResponse.headers.get("location"), base).pathname, financeCookie);
+  console.log("Smoke workflow passed: roles, staff creation, password changes, dashboard access and counts, job search, job, checklist, diagnostic access, parts, stock, proforma and deposit, invoice and payments, technician commission and payout.");
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => sql.end());

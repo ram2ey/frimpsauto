@@ -69,8 +69,12 @@ model User {
   mustChangePassword Boolean @default(false)
   role          Role
   active        Boolean  @default(true)
+  commissionBps Int?     // Technician's share of labour, in basis points (2000 = 20%)
   createdAt     DateTime @default(now())
   sessions      Session[]
+  commissions   Commission[]       @relation("CommissionTechnician")
+  payoutsReceived CommissionPayout[] @relation("PayoutTechnician")
+  payoutsMade   CommissionPayout[] @relation("PayoutPaidBy")
   assignedJobs  Job[]    @relation("AssignedTechnician")
   createdJobs   Job[]    @relation("JobCreator")
   uploads       Diagnostic[]
@@ -312,6 +316,7 @@ model Invoice {
   job         Job           @relation(fields: [jobId], references: [id])
   items       InvoiceItem[]
   payments    Payment[]
+  commission  Commission?
 }
 
 model InvoiceItem {
@@ -368,6 +373,41 @@ model ProformaItem {
   part        Part?           @relation(fields: [partId], references: [id], onDelete: SetNull)
 
   @@index([proformaId])
+}
+
+/// The technician's share of a job's labour, fixed when the invoice is paid in full.
+model Commission {
+  id           String            @id @default(cuid())
+  invoiceId    String            @unique
+  technicianId String
+  laborCents   Int
+  rateBps      Int
+  amountCents  Int
+  earnedAt     DateTime          @default(now())
+  payoutId     String?
+  invoice      Invoice           @relation(fields: [invoiceId], references: [id])
+  technician   User              @relation("CommissionTechnician", fields: [technicianId], references: [id])
+  payout       CommissionPayout? @relation(fields: [payoutId], references: [id], onDelete: SetNull)
+
+  @@index([technicianId, payoutId])
+}
+
+/// Money handed to a technician to settle one or more commissions.
+model CommissionPayout {
+  id           String       @id @default(cuid())
+  number       Int          @unique @default(autoincrement())
+  technicianId String
+  amountCents  Int
+  method       String
+  reference    String?
+  note         String?
+  paidById     String
+  paidAt       DateTime     @default(now())
+  technician   User         @relation("PayoutTechnician", fields: [technicianId], references: [id])
+  paidBy       User         @relation("PayoutPaidBy", fields: [paidById], references: [id])
+  commissions  Commission[]
+
+  @@index([technicianId])
 }
 
 model BusinessProfile {

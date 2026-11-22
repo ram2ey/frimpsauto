@@ -3,6 +3,7 @@ import { ArrowUpRight, Plus, ArrowRight, Wrench } from "lucide-react";
 import { Role } from "@/generated/prisma/client";
 import { requireUser } from "@/lib/auth";
 import { invoiceTotals } from "@/lib/finance-stats";
+import { commissionFor, ratePercent } from "@/lib/commission";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
 import { VehicleAvatar } from "@/components/vehicle-avatar";
@@ -13,6 +14,37 @@ const statuses = [
   { value: "WAITING_PARTS", label: "Waiting for parts", color: "#ac792d" },
   { value: "COMPLETED", label: "Completed", color: "#32735a" },
 ] as const;
+
+async function technicianEarnings(technicianId: string, rateBps: number | null) {
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const [owed, month, paid, recent, waiting] = await Promise.all([
+    db.commission.aggregate({ where: { technicianId, payoutId: null }, _sum: { amountCents: true } }),
+    db.commission.aggregate({ where: { technicianId, earnedAt: { gte: monthStart } }, _sum: { amountCents: true } }),
+    db.commissionPayout.aggregate({ where: { technicianId }, _sum: { amountCents: true } }),
+    db.commission.findMany({
+      where: { technicianId },
+      include: { invoice: { select: { jobId: true, job: { select: { number: true } } } }, payout: { select: { paidAt: true } } },
+      orderBy: { earnedAt: "desc" },
+      take: 5,
+    }),
+    // Finished jobs that haven't earned commission yet because the customer hasn't paid in full.
+    db.job.findMany({
+      where: { technicianId, status: "COMPLETED", OR: [{ invoice: null }, { invoice: { status: { not: "PAID" } } }] },
+      select: { invoice: { select: { items: { where: { type: "LABOR" }, select: { quantity: true, unitCents: true } } } } },
+    }),
+  ]);
+  const waitingLabor = waiting.reduce((sum, job) => sum + (job.invoice?.items.reduce((total, item) => total + item.quantity * item.unitCents, 0) ?? 0), 0);
+  return {
+    rateBps,
+    waitingJobs: waiting.length,
+    waitingCents: rateBps ? commissionFor(waitingLabor, rateBps) : 0,
+    owedCents: owed._sum.amountCents ?? 0,
+    monthCents: month._sum.amountCents ?? 0,
+    paidCents: paid._sum.amountCents ?? 0,
+    recent,
+  };
+}
 
 export default async function Dashboard() {
   const user = await requireUser();
@@ -41,6 +73,7 @@ export default async function Dashboard() {
   const active = workload[0].count + workload[1].count;
   const waiting = workload[2].count;
   const outstanding = invoices?.outstandingCents ?? 0;
+  const earnings = technician ? await technicianEarnings(user.id, user.commissionBps) : null;
 
   return (
     <main className="content dashboard">
@@ -78,6 +111,76 @@ export default async function Dashboard() {
           <div className="value money-value">{financial ? money(outstanding) : requests}</div>
         </div>
       </section>
+
+      {earnings && (
+        <section className="card mb" aria-labelledby="earnings-heading">
+          <div className="section-title">
+            <div>
+              <h2 id="earnings-heading">My earnings</h2>
+              <p className="subtitle" style={{ fontSize: "0.78rem", marginTop: 2 }}>
+                {earnings.rateBps
+                  ? `You earn ${ratePercent(earnings.rateBps)} of the labour on your jobs once the customer has paid in full.`
+                  : "No commission rate has been set for you yet."}
+              </p>
+            </div>
+          </div>
+          <div className="grid three mb">
+            <div className="stat">
+              <div className="label">Owed to you</div>
+              <div className="value">{money(earnings.owedCents)}</div>
+            </div>
+            <div className="stat">
+              <div className="label">Earned this month</div>
+              <div className="value">{money(earnings.monthCents)}</div>
+            </div>
+            <div className="stat">
+              <div className="label">Paid to you (all time)</div>
+              <div className="value">{money(earnings.paidCents)}</div>
+            </div>
+          </div>
+          {earnings.waitingJobs > 0 && (
+            <div className="notice">
+              <strong>Waiting for customer payment:</strong> {earnings.waitingJobs} completed {earnings.waitingJobs === 1 ? "job" : "jobs"}
+              {earnings.waitingCents > 0 && <>, about {money(earnings.waitingCents)} in commission</>}.
+              {" "}You are paid once each invoice is paid in full. Ask finance if a customer has already paid.
+            </div>
+          )}
+          {!!earnings.recent.length && (
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th scope="col">Job</th>
+                    <th scope="col">Paid in full</th>
+                    <th scope="col" className="number">Labour</th>
+                    <th scope="col" className="number">Your share</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {earnings.recent.map(commission => (
+                    <tr key={commission.id}>
+                      <td>
+                        <Link className="job-number" href={`/jobs/${commission.invoice.jobId}`}>
+                          #{String(commission.invoice.job.number).padStart(5, "0")}
+                        </Link>
+                      </td>
+                      <td className="date-cell">{date(commission.earnedAt)}</td>
+                      <td className="number">{money(commission.laborCents)}</td>
+                      <td className="number" style={{ fontWeight: 600 }}>{money(commission.amountCents)}</td>
+                      <td>
+                        <span className={`pill ${commission.payoutId ? "paid" : "partial"}`}>
+                          {commission.payoutId ? `paid ${date(commission.payout?.paidAt)}` : "owed"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="dashboard-lower">
         <section className="card recent-jobs">

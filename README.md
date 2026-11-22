@@ -39,6 +39,8 @@ Admins can enter the business name, address, phone, and email under **Business d
 
 Before work starts, finance can prepare a **proforma invoice** (quote) from the job's Proforma tab or the Finance page. Quoting a part does not take stock. Staff download the PDF, send it to the customer, and mark it sent, accepted, or declined. Each job has one proforma; editing it after it was sent starts a new revision (`PF-00012 Rev 2`) that has to be sent again. A deposit taken against the proforma is recorded on the job's invoice and comes off the balance when that invoice is issued. The invoice page shows how the final total compares with the quote.
 
+**Technician commission** is a percentage of the Labor lines only (not parts or items). An admin sets each technician's rate under **Finance → Technician commissions**; a blank rate means no commission. When a job's invoice is paid in full, the assigned technician's commission is fixed at their rate at that moment, so later rate changes don't alter it. Finance ticks the jobs being paid and records a payout, which gives a printable payout slip. Technicians see what they are owed and have been paid on their dashboard.
+
 For local development with an existing PostgreSQL server, set `DATABASE_URL`, run `npm install`, `npm run db:migrate`, `npm run db:seed`, and `npm run dev`.
 
 Existing staff can sign in with their previous email address entered as the username after migration, then change it under **Account**. Staff with unclaimed invitations need an administrator to set a temporary password on the Staff & access screen.

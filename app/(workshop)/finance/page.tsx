@@ -55,9 +55,11 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
       orderBy: { createdAt: "desc" },
       take: INVOICE_LIST_LIMIT,
     }),
+    // Includes jobs whose invoice is still a draft: parts and deposits create drafts early,
+    // and an unissued invoice can never be paid (or earn the technician's commission).
     db.job.findMany({
-      where: { status: "COMPLETED", invoice: null },
-      include: { customer: true },
+      where: { status: "COMPLETED", OR: [{ invoice: null }, { invoice: { status: "DRAFT" } }] },
+      include: { customer: true, invoice: { select: { id: true } } },
       orderBy: { closedAt: "desc" },
     }),
     db.directSale.findMany({
@@ -95,7 +97,10 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
           <h1>Finance & Invoicing</h1>
           <p className="subtitle">Job orders, parts requisitions, customer billing & workshop counter sales</p>
         </div>
-        <CounterSaleModal canSetPrice parts={parts} location="WORKSHOP" buttonLabel="+ Workshop counter sale" />
+        <div className="row wrap">
+          <Link className="btn btn-secondary" href="/finance/commissions">Technician commissions</Link>
+          <CounterSaleModal canSetPrice parts={parts} location="WORKSHOP" buttonLabel="+ Workshop counter sale" />
+        </div>
       </div>
 
       <div className="grid four mb">
@@ -311,11 +316,17 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
                     <td>{job.customer.name}</td>
                     <td>{date(job.closedAt)}</td>
                     <td>
-                      <form action={ensureInvoice.bind(null, job.id)}>
-                        <SubmitButton className="btn btn-secondary btn-small" pendingLabel="...">
-                          Prepare invoice
-                        </SubmitButton>
-                      </form>
+                      {job.invoice ? (
+                        <Link className="btn btn-secondary btn-small" href={`/finance/invoices/${job.invoice.id}`}>
+                          Finish draft invoice
+                        </Link>
+                      ) : (
+                        <form action={ensureInvoice.bind(null, job.id)}>
+                          <SubmitButton className="btn btn-secondary btn-small" pendingLabel="...">
+                            Prepare invoice
+                          </SubmitButton>
+                        </form>
+                      )}
                     </td>
                   </tr>
                 ))}

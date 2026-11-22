@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
 import { proformaReference } from "@/lib/invoice-pdf";
+import { ratePercent } from "@/lib/commission";
 import { InvoiceLineItems } from "@/components/invoice-line-items";
 import { PrintButton } from "@/components/print-button";
 import { SubmitButton } from "@/components/submit-button";
@@ -20,7 +21,8 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
     db.invoice.findUnique({
       where: { id },
       include: {
-        job: { include: { customer: true, vehicle: { include: { model: true } }, proforma: { include: { items: true } } } },
+        job: { include: { customer: true, vehicle: { include: { model: true } }, proforma: { include: { items: true } }, technician: { select: { name: true } } } },
+        commission: { include: { technician: { select: { name: true } }, payout: { select: { id: true, number: true } } } },
         items: { orderBy: { createdAt: "asc" } },
         payments: { orderBy: { paidAt: "desc" } },
       },
@@ -119,6 +121,22 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
+      {invoice.commission ? (
+        <p className="muted no-print mb" style={{ fontSize: "0.85rem" }}>
+          Commission to {invoice.commission.technician.name}: <strong>{money(invoice.commission.amountCents)}</strong> ({ratePercent(invoice.commission.rateBps)} of {money(invoice.commission.laborCents)} labour)
+          {" · "}
+          {invoice.commission.payout ? (
+            <>paid on <Link className="text-link" href={`/finance/commissions/payouts/${invoice.commission.payout.id}`}>PAY-{String(invoice.commission.payout.number).padStart(5, "0")}</Link></>
+          ) : (
+            "not paid out yet"
+          )}
+        </p>
+      ) : invoice.status !== "PAID" && invoice.job.technician ? (
+        <p className="muted no-print mb" style={{ fontSize: "0.85rem" }}>
+          {invoice.job.technician.name} earns commission on this invoice&apos;s labour lines once it is paid in full.
+        </p>
+      ) : null}
+
       {proforma && (
         <p className="muted no-print mb" style={{ fontSize: "0.85rem" }}>
           Quoted on <Link className="text-link" href={`/finance/proformas/${proforma.id}`}>{proformaReference(proforma.number, proforma.revision)}</Link> ({proforma.status.toLowerCase()}): <strong>{money(quoted)}</strong>
@@ -175,6 +193,9 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
                   <option value="LABOR">Labor / service</option>
                   <option value="ITEM">Item (e.g. part bought outside)</option>
                 </select>
+                <small className="muted" style={{ display: "block", marginTop: 4 }}>
+                  Technician commission is paid on Labor lines only.
+                </small>
               </div>
               <div>
                 <label htmlFor="description">Description</label>
