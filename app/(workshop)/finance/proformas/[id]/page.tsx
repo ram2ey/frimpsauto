@@ -8,6 +8,8 @@ import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
 import { proformaReference } from "@/lib/invoice-pdf";
+import { proformaFilename, proformaShareText } from "@/lib/share-text";
+import { SharePdfButton } from "@/components/share-pdf-button";
 
 const STATUS_ACTIONS = [
   { status: "SENT", label: "Mark as sent", className: "btn btn-primary" },
@@ -18,7 +20,7 @@ const STATUS_ACTIONS = [
 export default async function ProformaDetail({ params }: { params: Promise<{ id: string }> }) {
   await requireRole([Role.FINANCE]);
   const { id } = await params;
-  const [proforma, parts] = await Promise.all([
+  const [proforma, parts, business] = await Promise.all([
     db.proforma.findUnique({
       where: { id },
       include: {
@@ -33,6 +35,7 @@ export default async function ProformaDetail({ params }: { params: Promise<{ id:
       },
     }),
     db.part.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    db.businessProfile.findUnique({ where: { id: "primary" }, select: { name: true } }),
   ]);
   if (!proforma) notFound();
 
@@ -60,6 +63,12 @@ export default async function ProformaDetail({ params }: { params: Promise<{ id:
         <div className="row wrap">
           <span className={`pill ${proforma.status.toLowerCase()}`}>{proforma.status.toLowerCase()}</span>
           <a className="btn btn-primary" href={`/api/proformas/${id}/download`} download>Download PDF</a>
+          <SharePdfButton
+            url={`/api/proformas/${id}/download`}
+            filename={proformaFilename(proforma.number, proforma.revision)}
+            title={`Proforma ${reference}`}
+            text={proformaShareText(business?.name, reference, total, proforma.validUntil)}
+          />
           {job.invoice && <Link className="btn btn-secondary" href={`/finance/invoices/${job.invoice.id}`}>Invoice</Link>}
           <Link className="btn btn-secondary" href="/finance">Finance</Link>
         </div>

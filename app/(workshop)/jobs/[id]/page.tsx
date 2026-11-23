@@ -13,6 +13,8 @@ import { canViewJob } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
 import { proformaReference } from "@/lib/invoice-pdf";
+import { invoiceFilename, invoiceShareText, proformaFilename, proformaShareText } from "@/lib/share-text";
+import { SharePdfButton } from "@/components/share-pdf-button";
 import { assignTechnician, requestPart, updateFindings } from "@/app/job-actions";
 import { ensureProforma } from "@/app/proforma-actions";
 
@@ -52,7 +54,7 @@ export default async function JobDetail({
   const canReport = job.status !== "COMPLETED" && (edit || user.role === Role.TECHNICIAN);
   // The technician's "Other notes" box is theirs alone.
   const canEditWorkNotes = job.status !== "COMPLETED" && user.role === Role.TECHNICIAN;
-  const [technicians, parts, previousJob] = await Promise.all([
+  const [technicians, parts, previousJob, business] = await Promise.all([
     edit ? db.user.findMany({ where: { role: Role.TECHNICIAN, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
     edit ? db.part.findMany({ where: { active: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
     db.job.findFirst({
@@ -67,6 +69,7 @@ export default async function JobDetail({
         checklist: { orderBy: { sortOrder: "asc" } },
       },
     }),
+    isFinance ? db.businessProfile.findUnique({ where: { id: "primary" }, select: { name: true } }) : Promise.resolve(null),
   ]);
 
   const total = job.invoice?.items.reduce((sum, item) => sum + item.quantity * item.unitCents, 0) || 0;
@@ -338,6 +341,13 @@ export default async function JobDetail({
                 <div className="actions">
                   <Link className="btn btn-secondary btn-small" href={`/finance/proformas/${job.proforma.id}`}>Open proforma</Link>
                   <a className="btn btn-primary btn-small" href={`/api/proformas/${job.proforma.id}/download`} download>Download PDF</a>
+                  <SharePdfButton
+                    className="btn btn-secondary btn-small"
+                    url={`/api/proformas/${job.proforma.id}/download`}
+                    filename={proformaFilename(job.proforma.number, job.proforma.revision)}
+                    title={`Proforma ${proformaReference(job.proforma.number, job.proforma.revision)}`}
+                    text={proformaShareText(business?.name, proformaReference(job.proforma.number, job.proforma.revision), quoted, job.proforma.validUntil)}
+                  />
                 </div>
               )}
             </div>
@@ -408,6 +418,13 @@ export default async function JobDetail({
                 <div className="actions">
                   <Link className="btn btn-secondary btn-small" href={`/finance/invoices/${job.invoice.id}`}>View full invoice</Link>
                   <a className="btn btn-primary btn-small" href={`/api/invoices/${job.invoice.id}/download`} download>Download PDF</a>
+                  <SharePdfButton
+                    className="btn btn-secondary btn-small"
+                    url={`/api/invoices/${job.invoice.id}/download`}
+                    filename={invoiceFilename(job.invoice.number)}
+                    title={`Invoice INV-${String(job.invoice.number).padStart(5, "0")}`}
+                    text={invoiceShareText(business?.name, job.invoice.number, total, balance)}
+                  />
                 </div>
               )}
             </div>

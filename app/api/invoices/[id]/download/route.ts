@@ -3,6 +3,7 @@ import { Role } from "@/generated/prisma/client";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createInvoicePdf } from "@/lib/invoice-pdf";
+import { invoiceFilename } from "@/lib/share-text";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   await requireRole([Role.FINANCE]);
@@ -14,7 +15,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   } }), db.businessProfile.findUnique({ where: { id: "primary" } })]);
   if (!invoice) return new Response("Invoice not found", { status: 404 });
   const pdf = await createInvoicePdf(invoice, business);
-  const filename = `Frimps-Invoice-INV-${String(invoice.number).padStart(5, "0")}.pdf`;
+  const filename = invoiceFilename(invoice.number);
   return new NextResponse(new Uint8Array(pdf), { headers: {
     "Content-Type": "application/pdf",
     "Content-Disposition": `attachment; filename="${filename}"`,

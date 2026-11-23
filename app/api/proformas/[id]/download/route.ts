@@ -3,6 +3,7 @@ import { Role } from "@/generated/prisma/client";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createProformaPdf } from "@/lib/invoice-pdf";
+import { proformaFilename } from "@/lib/share-text";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   await requireRole([Role.FINANCE]);
@@ -13,8 +14,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   } }), db.businessProfile.findUnique({ where: { id: "primary" } })]);
   if (!proforma) return new Response("Proforma not found", { status: 404 });
   const pdf = await createProformaPdf(proforma, proforma.job.invoice?.payments ?? [], business);
-  const revision = proforma.revision > 1 ? `-Rev${proforma.revision}` : "";
-  const filename = `Frimps-Proforma-PF-${String(proforma.number).padStart(5, "0")}${revision}.pdf`;
+  const filename = proformaFilename(proforma.number, proforma.revision);
   return new NextResponse(new Uint8Array(pdf), { headers: {
     "Content-Type": "application/pdf",
     "Content-Disposition": `attachment; filename="${filename}"`,

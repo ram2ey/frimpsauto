@@ -9,6 +9,8 @@ import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
 import { proformaReference } from "@/lib/invoice-pdf";
 import { ratePercent } from "@/lib/commission";
+import { invoiceFilename, invoiceShareText } from "@/lib/share-text";
+import { SharePdfButton } from "@/components/share-pdf-button";
 import { InvoiceLineItems } from "@/components/invoice-line-items";
 import { PrintButton } from "@/components/print-button";
 import { SubmitButton } from "@/components/submit-button";
@@ -76,6 +78,12 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
           <a className="btn btn-primary" href={`/api/invoices/${id}/download`} download>
             Download PDF
           </a>
+          <SharePdfButton
+            url={`/api/invoices/${id}/download`}
+            filename={invoiceFilename(invoice.number)}
+            title={`Invoice INV-${String(invoice.number).padStart(5, "0")}`}
+            text={invoiceShareText(business?.name, invoice.number, total, balance)}
+          />
           <Link className="btn btn-secondary" href="/finance">
             Finance
           </Link>
