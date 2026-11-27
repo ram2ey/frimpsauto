@@ -1,4 +1,5 @@
 import { changePassword, changeUsername } from "@/app/auth-actions";
+import { InstallAppButton } from "@/components/install-app";
 import { PasswordInput } from "@/components/password-input";
 import { SubmitButton } from "@/components/submit-button";
 import { MIN_PASSWORD_LENGTH } from "@/lib/password";
@@ -9,7 +10,7 @@ type Notices = { error?: string; changed?: string; updated?: string };
 /** Account settings, shared by the workshop (/account) and the shop (/shop/account). */
 export function AccountPanel({ user, notices, returnTo }: { user: AccountUser; notices: Notices; returnTo: "/account" | "/shop/account" }) {
   const { error, changed, updated } = notices;
-  return <main className="content"><div className="page-head"><div><h1>Account</h1><p className="subtitle">{user.name} · {user.role.toLowerCase().replace("_", " ")}</p></div></div>
+  return <main className="content"><div className="page-head"><div><h1>Account</h1><p className="subtitle">{user.name} · {user.role.toLowerCase().replace("_", " ")}</p></div><InstallAppButton /></div>
     {error && <div className="notice">{error}</div>}
     {(changed === "1" || updated === "1") && <div className="notice success">{changed === "1" ? "Password changed." : "Username updated."}</div>}
     <div className="grid two"><section className="card"><h2>Change password</h2><form action={changePassword} className="stack">

@@ -1,5 +1,6 @@
 import { login } from "@/app/auth-actions";
 import { BrandLogo } from "@/components/brand-logo";
+import { InstallAppButton } from "@/components/install-app";
 import { PasswordInput } from "@/components/password-input";
 import { SubmitButton } from "@/components/submit-button";
 
@@ -22,6 +23,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         <div><label htmlFor="password">Password</label><PasswordInput id="password" name="password" required autoComplete="current-password" /></div>
         <SubmitButton pendingLabel="Signing in...">Sign in</SubmitButton>
       </form>
+      <InstallAppButton className="install-app-login" />
     </div></section>
   </main>;
 }

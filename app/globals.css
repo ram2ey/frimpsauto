@@ -292,6 +292,7 @@ button:disabled[aria-busy="true"] {
 .login-single label, .login-single input { text-align: left; }
 .login-single form { margin-top: 28px; }
 .login-single .btn { width: 100%; }
+.install-app-login { margin-top: 12px; }
 
 @media (min-width: 1700px) {
   .shell { max-width: 100%; margin: 0; min-height: 100vh; }
@@ -519,6 +520,12 @@ button:disabled[aria-busy="true"] {
 .modal-close-btn:hover { background: #e4f0f8; color: var(--ink); }
 .modal-warning-box { display: flex; align-items: flex-start; gap: 10px; background: #fff8eb; border: 1px solid #f0debe; border-radius: 0; padding: 12px 14px; font-size: .76rem; color: #7b5818; line-height: 1.5; margin-top: 14px; }
 .modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #e1ecf4; }
+.install-app-dialog { width: min(420px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow: auto; padding: 0; }
+.install-app-dialog h2 { margin-bottom: 14px; }
+.install-app-steps { display: grid; gap: 10px; margin: 0; padding-inline-start: 22px; font-size: .9rem; line-height: 1.5; }
+.install-app-steps li { padding-inline-start: 4px; }
+.install-share-icon { vertical-align: -.19em; color: var(--blue); }
+.install-app-note { margin: 14px 0 0; padding: 10px 12px; background: var(--paper); color: var(--muted); font-size: .8rem; }
 .password-input-wrap { position: relative; display: flex; align-items: center; }
 .password-input-wrap input { padding-right: 44px; }
 .password-toggle-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; transition: color .18s ease, background-color .18s ease; }
